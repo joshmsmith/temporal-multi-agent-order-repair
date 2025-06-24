@@ -1,0 +1,21 @@
+[tool.poetry]
+package-mode = false  # Disable package mode
+name = "temporal-multi-agent"
+version = "0.1.1"
+description = ""
+authors = ["Laine Smith, Joshua Smith"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+temporalio = "^1.29.0"  # Added temporalio dependency
+requests = "^2.32.3"
+flask = "^3.1.1"
+dotenv = "^0.9.9"
+fastmcp = "^2.8.0"
+openai = "^1.86.0"  # Added OpenAI client library
+litellm = "^1.72.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

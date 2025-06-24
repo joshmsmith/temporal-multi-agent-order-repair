@@ -1,0 +1,335 @@
+{
+  "orders": [
+    {
+      "order_id": "ORD-001-HJP",
+      "customer_name": "Harry James Potter",
+      "customer_id": "CUST-HP-001",
+      "order_date": "2024-09-15T10:30:00Z",
+      "status": "completed",
+      "shipping_address": {
+        "street": "4 Privet Drive",
+        "city": "Little Whinging",
+        "postal_code": "GU4 2WP",
+        "country": "United Kingdom"
+      },
+      "items": [
+        {
+          "item_id": "QD-SNT-001",
+          "item_name": "Golden Snitch Practice Set",
+          "description": "Regulation-size practice snitch with reduced speed enchantment for training",
+          "category": "Quidditch Equipment",
+          "quantity": 2,
+          "unit_price": 25.99,
+          "total_price": 51.98
+        },
+        {
+          "item_id": "POT-FPP-042",
+          "item_name": "Felix Felicis Potion Kit",
+          "description": "Advanced potion brewing kit with pre-measured ingredients for liquid luck",
+          "category": "Potions",
+          "quantity": 1,
+          "unit_price": 89.50,
+          "total_price": 89.50
+        },
+        {
+          "item_id": "DEF-EXP-007",
+          "item_name": "Expelliarmus Wand Holster",
+          "description": "Quick-draw wand holster enchanted for dueling practice",
+          "category": "Defense Equipment",
+          "quantity": 1,
+          "unit_price": 34.75,
+          "total_price": 34.75
+        }
+      ],
+      "subtotal": 176.23,
+      "tax": 17.62,
+      "shipping": 5.99,
+      "total": 199.84,
+      "payment_method": "Gringotts Vault Transfer",
+      "notes": "Please deliver after 3 PM to avoid Dursleys"
+    },
+    {
+      "order_id": "ORD-002-HJG",
+      "customer_name": "Hermione Jean Granger",
+      "customer_id": "CUST-HG-002",
+      "order_date": "2024-09-12T14:45:00Z",
+      "status": "shipped",
+      "shipping_address": {
+        "street": "Heathgate",
+        "city": "Hampstead Garden Suburb",
+        "postal_code": "NW11 7HY",
+        "country": "United Kingdom"
+      },
+      "items": [
+        {
+          "item_id": "BK-HIST-101",
+          "item_name": "Hogwarts: A History (Revised Edition)",
+          "description": "Comprehensive 1,200-page guide to Hogwarts castle and its magical history",
+          "category": "Books",
+          "quantity": 1,
+          "unit_price": 19.99,
+          "total_price": 19.99
+        },
+        {
+          "item_id": "BK-RUNE-205",
+          "item_name": "Ancient Runes Translation Guide",
+          "description": "Complete reference for Elder Futhark and magical runic systems",
+          "category": "Books",
+          "quantity": 1,
+          "unit_price": 32.50,
+          "total_price": 32.50
+        },
+        {
+          "item_id": "STP-ORG-001",
+          "item_name": "S.P.E.W. Badge Set",
+          "description": "Official Society for Promotion of Elfish Welfare membership badges (set of 20)",
+          "category": "Activism Supplies",
+          "quantity": 3,
+          "unit_price": 8.99,
+          "total_price": 26.97
+        },
+        {
+          "item_id": "QLL-FTH-003",
+          "item_name": "Self-Inking Quill (Phoenix Feather)",
+          "description": "Never-ending ink quill perfect for extensive note-taking",
+          "category": "Writing Supplies",
+          "quantity": 2,
+          "unit_price": 15.75,
+          "total_price": 31.50
+        }
+      ],
+      "subtotal": 110.96,
+      "tax": 11.10,
+      "shipping": 0.00,
+      "total": 122.06,
+      "payment_method": "Muggle Credit Card",
+      "notes": "Express delivery for studying - NEWT exams approaching!"
+    },
+    {
+      "order_id": "ORD-003-RBW",
+      "customer_name": "Ronald Bilius Weasley",
+      "customer_id": "CUST-RW-003",
+      "order_date": "2024-09-18T16:20:00Z",
+      "status": "processing",
+      "shipping_address": {
+        "street": "The Burrow, Ottery St Catchpole",
+        "city": "Devon",
+        "postal_code": "EX11 1HF",
+        "country": "United Kingdom"
+      },
+      "items": [
+        {
+          "item_id": "CHS-SET-001",
+          "item_name": "Wizard's Chess Set (Tournament Grade)",
+          "description": "Self-playing chess set with advanced AI and battle animations",
+          "category": "Games",
+          "quantity": 1,
+          "unit_price": 67.99,
+          "total_price": 67.99
+        },
+        {
+          "item_id": "SWT-CHC-012",
+          "item_name": "Chocolate Frog Collection Box",
+          "description": "Assorted chocolate frogs with rare wizard card possibilities",
+          "category": "Sweets",
+          "quantity": 5,
+          "unit_price": 3.99,
+          "total_price": 19.95
+        },
+        {
+          "item_id": "QD-KEP-004",
+          "item_name": "Keeper Gloves (Professional)",
+          "description": "Dragon hide gloves with grip-enhancing charms for Quidditch keepers",
+          "category": "Quidditch Equipment",
+          "quantity": 1,
+          "unit_price": 45.00,
+          "total_price": 45.00
+        }
+      ],
+      "subtotal": 132.94,
+      "tax": 13.29,
+      "shipping": 7.50,
+      "total": 153.73,
+      "payment_method": "Gringotts Vault Transfer",
+      "notes": "Birthday gift from Harry - thank you mate!"
+    },
+    {
+      "order_id": "ORD-004-RHG",
+      "customer_name": "Rubeus Hagrid",
+      "customer_id": "CUST-RH-004",
+      "order_date": "2024-09-10T09:15:00Z",
+      "status": "delivered",
+      "shipping_address": {
+        "street": "Keeper's Hut, Hogwarts Grounds",
+        "city": "Hogsmeade",
+        "postal_code": "HG1 2AB",
+        "country": "Scotland"
+      },
+      "items": [
+        {
+          "item_id": "CRT-FD-101",
+          "item_name": "Dragon Kibble (Grade A)",
+          "description": "Premium nutrition for growing dragons - 50kg bag",
+          "category": "Creature Care",
+          "quantity": 10,
+          "unit_price": 89.99,
+          "total_price": 899.90
+        },
+        {
+          "item_id": "CRT-MED-205",
+          "item_name": "Unicorn Antiseptic Salve",
+          "description": "Healing salve for magical creature wounds and injuries",
+          "category": "Creature Care",
+          "quantity": 3,
+          "unit_price": 24.50,
+          "total_price": 73.50
+        },
+        {
+          "item_id": "GRD-GLV-007",
+          "item_name": "Dragon-Hide Gardening Gloves (XXXL)",
+          "description": "Extra-large protective gloves for handling dangerous magical plants",
+          "category": "Herbology",
+          "quantity": 2,
+          "unit_price": 18.99,
+          "total_price": 37.98
+        },
+        {
+          "item_id": "TEA-BLD-001",
+          "item_name": "Rock Cake Baking Mix",
+          "description": "Traditional recipe mix for extra-hard rock cakes (includes warning label)",
+          "category": "Food & Beverage",
+          "quantity": 6,
+          "unit_price": 4.99,
+          "total_price": 29.94
+        }
+      ],
+      "subtotal": 1041.32,
+      "tax": 104.13,
+      "shipping": 25.00,
+      "total": 1170.45,
+      "payment_method": "Hogwarts Staff Account",
+      "notes": "Norbert is growing fast! Need this ASAP for feeding time."
+    },
+    {
+      "order_id": "ORD-005-LLV",
+      "customer_name": "Luna Lovegood",
+      "customer_id": "CUST-LL-005",
+      "order_date": "2024-09-14T11:30:00Z",
+      "status": "completed",
+      "shipping_address": {
+        "street": "The Rookery, near Ottery St Catchpole",
+        "city": "Devon",
+        "postal_code": "EX11 1QG",
+        "country": "United Kingdom"
+      },
+      "items": [
+        {
+          "item_id": "ACC-EARR-001",
+          "item_name": "Radish Earrings (Dirigible Plum Style)",
+          "description": "Whimsical earrings believed to enhance mental clarity and ward off Nargles",
+          "category": "Accessories",
+          "quantity": 1,
+          "unit_price": 12.99,
+          "total_price": 12.99
+        },
+        {
+          "item_id": "MAG-SPEC-008",
+          "item_name": "Spectrespecs (Deluxe Edition)",
+          "description": "Enhanced magical glasses for detecting invisible creatures and auras",
+          "category": "Magical Instruments",
+          "quantity": 1,
+          "unit_price": 27.50,
+          "total_price": 27.50
+        },
+        {
+          "item_id": "PUB-QUI-001",
+          "item_name": "The Quibbler Annual Subscription",
+          "description": "12-month subscription to alternative magical news and creature spotting",
+          "category": "Publications",
+          "quantity": 1,
+          "unit_price": 36.00,
+          "total_price": 36.00
+        },
+        {
+          "item_id": "HRB-CRK-003",
+          "item_name": "Crumple-Horned Snorkack Detection Kit",
+          "description": "Comprehensive kit for tracking elusive magical creatures",
+          "category": "Magical Instruments",
+          "quantity": 1,
+          "unit_price": 78.99,
+          "total_price": 78.99
+        }
+      ],
+      "subtotal": 155.48,
+      "tax": 15.55,
+      "shipping": 4.50,
+      "total": 175.53,
+      "payment_method": "Owl Post COD",
+      "notes": "Daddy says the Snorkacks are migrating early this year!"
+    },
+    {
+      "order_id": "ORD-006-DLM",
+      "customer_name": "Draco Lucius Malfoy",
+      "customer_id": "CUST-DM-006",
+      "order_date": "2024-09-16T13:45:00Z",
+      "status": "priority_processing",
+      "shipping_address": {
+        "street": "Malfoy Manor, Wiltshire",
+        "city": "Wiltshire",
+        "postal_code": "SN4 8DZ",
+        "country": "United Kingdom"
+      },
+      "items": [
+        {
+          "item_id": "LUX-WND-001",
+          "item_name": "Platinum-Inlaid Wand Case",
+          "description": "Handcrafted wand case with Malfoy family crest and protective enchantments",
+          "category": "Luxury Accessories",
+          "quantity": 1,
+          "unit_price": 299.99,
+          "total_price": 299.99
+        },
+        {
+          "item_id": "QD-BRM-001",
+          "item_name": "Nimbus 2001 Maintenance Kit",
+          "description": "Professional-grade maintenance supplies for high-end racing brooms",
+          "category": "Quidditch Equipment",
+          "quantity": 1,
+          "unit_price": 125.00,
+          "total_price": 125.00
+        },
+        {
+          "item_id": "APT-SLY-001",
+          "item_name": "Slytherin House Robes (Tailored)",
+          "description": "Custom-fitted house robes with silver thread embroidery",
+          "category": "Apparel",
+          "quantity": 2,
+          "unit_price": 89.99,
+          "total_price": 179.98
+        },
+        {
+          "item_id": "POT-HAR-001",
+          "item_name": "Hair Sleekening Potion (Premium)",
+          "description": "Top-quality hair potion for maintaining perfect appearance",
+          "category": "Personal Care",
+          "quantity": 3,
+          "unit_price": 22.50,
+          "total_price": 67.50
+        }
+      ],
+      "subtotal": 672.47,
+      "tax": 67.25,
+      "shipping": 0.00,
+      "total": 739.72,
+      "payment_method": "Gringotts Platinum Vault",
+      "notes": "Rush delivery - Father expects the best. House-elf signature required."
+    }
+  ],
+  "order_summary": {
+    "total_orders": 6,
+    "total_revenue": 2559.33,
+    "average_order_value": 426.56,
+    "most_popular_category": "Quidditch Equipment",
+    "top_customer_by_spending": "Rubeus Hagrid"
+  }
+}
