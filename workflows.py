@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -9,7 +7,8 @@ from temporalio import workflow
 from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError, ApplicationError
 
-from activities import report, repair, analyze, detect
+with workflow.unsafe.imports_passed_through():
+    from activities import report, repair, analyze, detect
 
 
 def _parse_due_date(due: str) -> datetime:
@@ -95,7 +94,7 @@ class RepairAgentWorkflow:
         self.context["metadata"] = inputs.get("metadata", {})
         workflow.logger.info(f"Starting repair workflow with inputs: {inputs}")
 
-        #TODO detect any problems before analysis
+        
         self.status = "DETECTING-PROBLEMS"
         workflow.logger.info("Detecting problems in the system")
         self.context["detection_result"] = await workflow.execute_activity(
@@ -111,8 +110,7 @@ class RepairAgentWorkflow:
         workflow.logger.info(f"Detection result: {self.context["detection_result"]}")
 
 
-        self.status = "ANALYZING"
-                
+        self.status = "ANALYZING"                
         self.context["analysis_result"] = await workflow.execute_activity(
             analyze,
             self.context,
@@ -168,7 +166,9 @@ class RepairAgentWorkflow:
             ),
             heartbeat_timeout=timedelta(seconds=10),
         )
+        self.status = "REPORT-COMPLETED"
         workflow.logger.info(f"Report result: {self.context["report_result"]}")     
 
+        #TODO return the report result
         
         return self.status

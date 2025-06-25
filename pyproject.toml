@@ -8,7 +8,7 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
-temporalio = "^1.29.0"  # Added temporalio dependency
+temporalio = "^1.13.0"  # Added temporalio dependency
 requests = "^2.32.3"
 flask = "^3.1.1"
 dotenv = "^0.9.9"
