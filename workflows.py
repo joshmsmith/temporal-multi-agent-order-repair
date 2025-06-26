@@ -39,6 +39,7 @@ class RepairAgentWorkflow:
     def __init__(self) -> None:
         self.approved: bool = False
         self.rejected: bool = False
+        self.planned: bool = False
         self.status: str = "INITIALIZING"
         self.context: dict = {}
 
@@ -52,6 +53,12 @@ class RepairAgentWorkflow:
         self.rejected = True
         self.context["rejected_by"] = rejecter
 
+    @workflow.query
+    async def IsRepairPlanned(self) -> bool:
+        if self.planned is None:
+            raise ApplicationError("Repair approval status is not set yet.")
+        return self.planned
+    
     @workflow.query
     async def IsRepairApproved(self) -> bool:
         if self.approved is None:
@@ -89,7 +96,7 @@ class RepairAgentWorkflow:
         return self.context["detection_result"]
     
     @workflow.query
-    async def GetRepairPlanningResult(self) -> str:
+    async def GetRepairPlanningResult(self) -> dict:
         if "planning_result" not in self.context:
             raise ApplicationError("Planning result is not available yet.")
         return self.context["planning_result"]
@@ -116,7 +123,7 @@ class RepairAgentWorkflow:
         workflow.logger.info(f"Detection result: {self.context["detection_result"]}")
 
         #execute the analysis agent
-        self.status = "ANALYZING"                
+        self.status = "ANALYZING-PROBLEMS"                
         self.context["analysis_result"] = await workflow.execute_activity(
             analyze,
             self.context,
@@ -129,7 +136,10 @@ class RepairAgentWorkflow:
         )
         workflow.logger.info(f"Analysis result: {self.context["analysis_result"]}")
 
-        # Check if the analysis result indicates a need for repair
+        #TODO do something different with the analysis result if it doesn't indicate a need for repair
+        self.context["problems_to_repair"] = self.context["analysis_result"]
+
+        #TODO Check if the analysis result indicates a need for repair
         # Execute the planning agent
         self.status = "PLANNING-REPAIR"                
         self.context["planning_result"] = await workflow.execute_activity(
@@ -140,9 +150,10 @@ class RepairAgentWorkflow:
                 initial_interval=timedelta(seconds=1),
                 maximum_interval=timedelta(seconds=30),  
             ),
-            heartbeat_timeout=timedelta(seconds=10),
+            heartbeat_timeout=timedelta(seconds=30),
         )
         workflow.logger.info(f"Planning result: {self.context["planning_result"]}")
+        self.planned = True
 
         # Wait for the approval or reject signal
         self.status = "PENDING-APPROVAL"

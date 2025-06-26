@@ -103,7 +103,8 @@
       "shipping": 0.00,
       "total": 749.00,
       "payment_method": "Muggle Credit Card",
-      "notes": "Express delivery for studying - NEWT exams approaching!"
+      "notes": "Express delivery for studying - NEWT exams approaching!",
+      "status_notes": "Awaiting inventory restock for S.P.E.W. badges"
     },
     {
       "order_id": "ORD-003-RBW",
