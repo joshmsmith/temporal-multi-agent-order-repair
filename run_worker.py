@@ -43,6 +43,7 @@ async def run_worker() -> None:
         activities=[activities.single_tool_repair, 
                     activities.detect,
                     activities.analyze, 
+                    activities.plan_repair,
                     activities.repair, 
                     activities.report],
     )

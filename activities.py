@@ -33,14 +33,20 @@ async def single_tool_repair(self, input: dict) -> str:
     report = await report(input)
 
     return report
-    
+'''These activities demonstrate the detect, analyze, repair, and report steps of the repair agent workflow.
+They can be used to detect, analyze, repair, and report on a system.
+They simply call the corresponding functions to perform the actions.'''
 @activity.defn
 async def detect(input: dict) -> dict:
     return await detect_some_stuff(input)
 
 @activity.defn
-async def analyze(input: dict) -> str:
+async def analyze(input: dict) -> dict:
     return await analyze_some_stuff(input)
+
+@activity.defn
+async def plan_repair(input: dict) -> str:
+    return await plan_to_repair_some_stuff(input)
 
 @activity.defn
 async def repair(input: dict) -> str:
@@ -50,13 +56,15 @@ async def repair(input: dict) -> str:
 async def report(input: dict) -> str:
     return await report_some_stuff(input)
 
-'''These are the individual activities that implement the automated helper agents.
-They can be used to detect, analyze, repair, and report on the system.'''
+'''These are the individual functions that implement the automated helper agents.
+They can be used to detect, analyze, repair, and report on repairs for a system.'''
+
 async def detect_some_stuff(input: dict) -> dict:
     """
     This  is a an automated helper agent that detects problems.
     """
-    # Load the orders data from a JSON file
+    #TODO convert this to a function to load the orders data from a file
+    # Load the orders data (from a JSON file)
     orders_file_path = (
         Path(__file__).resolve().parent / "data" / "orders.json"
     )
@@ -67,10 +75,9 @@ async def detect_some_stuff(input: dict) -> dict:
         raise ApplicationError(exception_message)
 
     with open(orders_file_path, "r") as orders_file:
-        order_data = json.load(orders_file)
-
+        order_data: dict = json.load(orders_file)
     
-        orders_of_interest = input.get("orders_of_interest", [])
+        orders_of_interest: dict = input.get("orders_of_interest", [])
         if orders_of_interest:
             # Filter the order data based on the orders of interest
             orders_to_detect_json = [
@@ -84,18 +91,22 @@ async def detect_some_stuff(input: dict) -> dict:
         llm_model = os.environ.get("LLM_MODEL", "openai/gpt-4")
         llm_key = os.environ.get("LLM_KEY")
         if not llm_model or not llm_key:
-            return {"error": "LLM model or key not found in environment variables."}
+            exception_message = f"LLM model or key not found in environment variables."
+            activity.logger.error(exception_message)
+            print(exception_message)
+            raise ApplicationError(exception_message)
     
-        # Define the messages for the LLM completion
-        context_instructions = "You are a helpful assistant that detects problems in orders. " \
-        "Your task is to analyze the provided orders and identify any issues or anomalies. " \
+        
+        # This is a context instruction for the LLM to understand its task
+        context_instructions = "You are a helpful assistant that detects if there are problems in orders. " \
+        "Your task is to analyze the provided orders and detect if there are any issues or anomalies. " \
         "You will receive a list of orders in JSON format, " \
-        "each containing an 'order_id', 'items', and 'quantities'. " \
+        "each containing an 'order_id', 'order_date', 'status', 'items', and 'quantities'. " \
         "Look for common problems such as orders needing approval, orders stuck or delayed for various reasons for more than two weeks, " \
         "or other anomalies. " \
         "Ensure your response is valid JSON and does not contain any markdown formatting. " \
-        "The response should be a JSON object with a key 'issues' that contains a list of detected issues. " \
-        "If there are no issues, return an empty list. " \
+        "The response should be a JSON object with a confidence_score of how " \
+        "sure you are that there are issues. " \
         "The list of orders to analyze is as follows: " \
         + json.dumps(orders_to_detect_json, indent=2)
         messages = [
@@ -121,12 +132,103 @@ async def detect_some_stuff(input: dict) -> dict:
             response = completion(**completion_kwargs)
 
             response_content = response.choices[0].message.content
-            activity.logger.info(f"Raw LLM response: {repr(response_content)}")
-            activity.logger.info(f"LLM response content: {response_content}")
-            activity.logger.info(f"LLM response type: {type(response_content)}")
-            activity.logger.info(
-                f"LLM response length: {len(response_content) if response_content else 'None'}"
-            )
+            #activity.logger.info(f"Raw LLM response: {repr(response_content)}")
+            #activity.logger.info(f"LLM response content: {response_content}")
+            #activity.logger.info(f"LLM response type: {type(response_content)}")
+            
+            # Sanitize the response to ensure it is valid JSON
+            response_content = sanitize_json_response(response_content)
+            activity.logger.info(f"Sanitized response: {repr(response_content)}")
+            detection_json_response: dict = parse_json_response(response_content)
+
+            if "confidence_score" not in detection_json_response:
+                exception_message = "Detection response does not contain 'confidence_score'."
+                activity.logger.error(exception_message)
+                raise ApplicationError(exception_message)
+            
+            confidence_score = detection_json_response.get("confidence_score", 0.0)
+            activity.logger.info(f"Detection confidence score: {confidence_score}")
+            return detection_json_response
+        
+        except Exception as e:
+            print(f"Error in LLM completion: {str(e)}")
+            raise
+    
+async def analyze_some_stuff(input: dict) -> str:
+    """
+    This is an automated helper agent that analyzes problems.
+    """
+
+    # Load the orders data (from a JSON file)
+    orders_file_path = (
+        Path(__file__).resolve().parent / "data" / "orders.json"
+    )
+    if not orders_file_path.exists():
+        exception_message = f"Orders data file not found at {orders_file_path}"
+        activity.logger.error(exception_message)
+        print(exception_message)
+        raise ApplicationError(exception_message)
+
+    with open(orders_file_path, "r") as orders_file:
+        order_data: dict = json.load(orders_file)
+    
+        orders_of_interest: dict = input.get("orders_of_interest", [])
+        if orders_of_interest:
+            # Filter the order data based on the orders of interest
+            orders_to_detect_json = [
+                order for order in order_data if order["order_id"] in orders_of_interest
+            ]
+        if not orders_of_interest:
+            orders_to_detect_json = order_data
+
+        activity.heartbeat("Orders Loaded, detection in progress...")
+        
+        llm_model = os.environ.get("LLM_MODEL", "openai/gpt-4")
+        llm_key = os.environ.get("LLM_KEY")
+        if not llm_model or not llm_key:
+            exception_message = f"LLM model or key not found in environment variables."
+            activity.logger.error(exception_message)
+            print(exception_message)
+            raise ApplicationError(exception_message)
+    
+        # Define the messages for the LLM completion
+        context_instructions = "You are a helpful assistant that detects and analyzes problems in orders. " \
+        "Your task is to analyze the provided orders and identify any issues or anomalies. " \
+        "You will receive a list of orders in JSON format, " \
+        "each containing an 'order_id', 'order_date', 'status', 'items', and 'quantities'. " \
+        "Look for common problems such as orders needing approval, orders stuck or delayed for various reasons for more than two weeks, " \
+        "or other anomalies. " \
+        "Ensure your response is valid JSON and does not contain any markdown formatting. " \
+        "The response should be a JSON object with a key 'issues' that contains a list of detected issues and " \
+        "a confidence_score of how sure you are there is a problem. " \
+        "If there are no issues, return an empty list. " \
+        "The list of orders to analyze is as follows: " \
+        + json.dumps(orders_to_detect_json, indent=2)
+        messages = [
+            {
+                "role": "system",
+                "content": context_instructions
+                + ". The current date is "
+                + datetime.now().strftime("%B %d, %Y"),
+            },
+        ]
+
+        try:
+            completion_kwargs = {
+                "model": llm_model,
+                "messages": messages,
+                "api_key": llm_key,
+            }
+
+            response = completion(**completion_kwargs)
+
+            response_content = response.choices[0].message.content
+            # activity.logger.info(f"Raw LLM response: {repr(response_content)}")
+            # activity.logger.info(f"LLM response content: {response_content}")
+            # activity.logger.info(f"LLM response type: {type(response_content)}")
+            # activity.logger.info(
+            #     f"LLM response length: {len(response_content) if response_content else 'None'}"
+            # )
 
             # Use the new sanitize function
             response_content = sanitize_json_response(response_content)
@@ -136,7 +238,17 @@ async def detect_some_stuff(input: dict) -> dict:
         except Exception as e:
             print(f"Error in LLM completion: {str(e)}")
             raise
+
+async def plan_to_repair_some_stuff(input: dict) -> str:
+    """
+    This is a an automated helper agent that repairs problems.
+    """
+    #TODO call some llm here to propose repairs for problems
     
+    activity.heartbeat("Repair in progress...")
+    
+
+    return "Repair completed successfully: 75 problems repaired."
 
 async def repair_some_stuff(input: dict) -> str:
     """
@@ -148,17 +260,6 @@ async def repair_some_stuff(input: dict) -> str:
     
 
     return "Repair completed successfully: 75 problems repaired."
-
-async def analyze_some_stuff(input: dict) -> str:
-    """
-    This is an automated helper agent that analyzes problems.
-    """
-    #todo call some llm here to analyze for problems
-    await sleep(2)  # Simulate a 2-second delay
-    activity.heartbeat("Analysis in progress...")
-    
-    # Return a success message
-    return "Analysis completed successfully, recommend repairing 75 problems."
 
 async def report_some_stuff(input: dict) -> str:
     """

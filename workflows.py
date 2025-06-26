@@ -8,7 +8,7 @@ from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError, ApplicationError
 
 with workflow.unsafe.imports_passed_through():
-    from activities import report, repair, analyze, detect
+    from activities import analyze, detect, plan_repair, repair, report
 
 
 def _parse_due_date(due: str) -> datetime:
@@ -87,6 +87,12 @@ class RepairAgentWorkflow:
         if "detection_result" not in self.context:
             raise ApplicationError("Detection result is not available yet.")
         return self.context["detection_result"]
+    
+    @workflow.query
+    async def GetRepairPlanningResult(self) -> str:
+        if "planning_result" not in self.context:
+            raise ApplicationError("Planning result is not available yet.")
+        return self.context["planning_result"]
 
     @workflow.run
     async def run(self, inputs: dict) -> str:
@@ -94,7 +100,7 @@ class RepairAgentWorkflow:
         self.context["metadata"] = inputs.get("metadata", {})
         workflow.logger.info(f"Starting repair workflow with inputs: {inputs}")
 
-        
+        # Execute the detection agent
         self.status = "DETECTING-PROBLEMS"
         workflow.logger.info("Detecting problems in the system")
         self.context["detection_result"] = await workflow.execute_activity(
@@ -109,7 +115,7 @@ class RepairAgentWorkflow:
         )
         workflow.logger.info(f"Detection result: {self.context["detection_result"]}")
 
-
+        #execute the analysis agent
         self.status = "ANALYZING"                
         self.context["analysis_result"] = await workflow.execute_activity(
             analyze,
@@ -123,10 +129,24 @@ class RepairAgentWorkflow:
         )
         workflow.logger.info(f"Analysis result: {self.context["analysis_result"]}")
 
+        # Check if the analysis result indicates a need for repair
+        # Execute the planning agent
+        self.status = "PLANNING-REPAIR"                
+        self.context["planning_result"] = await workflow.execute_activity(
+            plan_repair,
+            self.context,
+            start_to_close_timeout=timedelta(minutes=5),
+            retry_policy=RetryPolicy(
+                initial_interval=timedelta(seconds=1),
+                maximum_interval=timedelta(seconds=30),  
+            ),
+            heartbeat_timeout=timedelta(seconds=10),
+        )
+        workflow.logger.info(f"Planning result: {self.context["planning_result"]}")
+
+        # Wait for the approval or reject signal
         self.status = "PENDING-APPROVAL"
         workflow.logger.info(f"Waiting for approval for repair")
-        # Wait for the approval or reject signal
-
         await workflow.wait_condition(
             lambda: self.approved is not False or self.rejected is not False,
             timeout=timedelta(days=5),
@@ -140,7 +160,7 @@ class RepairAgentWorkflow:
         self.status = "APPROVED"
         workflow.logger.info(f"Repair approved by user {self.context.get('approved_by', 'unknown')}")
 
-        # Proceed with the repair activity
+        # Proceed with the repair agent
         self.status = "PENDING-REPAIR"
         self.context["repair_result"] = await workflow.execute_activity(
             repair,
@@ -154,7 +174,7 @@ class RepairAgentWorkflow:
         )
         workflow.logger.info(f"Repair result: {self.context["repair_result"]}")
 
-        # Proceed with the repair activity
+        # Proceed with the report agent
         self.status = "PENDING-REPORT"
         self.context["report_result"] = await workflow.execute_activity(
             report,
@@ -168,7 +188,15 @@ class RepairAgentWorkflow:
         )
         self.status = "REPORT-COMPLETED"
         workflow.logger.info(f"Report result: {self.context["report_result"]}")     
-
-        #TODO return the report result
         
-        return self.status
+        return f"Repair workflow completed with status: {self.status}. Report: {self.context.get('report_result', 'No report generated')}"
+
+#TODO: add a workflow that runs a single tool as an update operation to repair one order's problems
+
+#TODO: add a workflow that runs daily and detects problems in the system, analyzes them, optionally repairs - use schedules
+
+#TODO: add a workflow that runs all the time and sleeps for a day, then  detects problems in the system, analyzes them, optionally repairs
+
+#TODO: add a workflow that is an agent itself, with a goal and tools, does tool planning
+
+#TODO: explain automation agents vs conversational (assistive) agents, and how they can be used together
