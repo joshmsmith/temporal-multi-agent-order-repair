@@ -573,9 +573,9 @@ async def report_some_stuff(input: dict) -> dict:
         if additional_notes:
             additional_notes = f"({additional_notes})"
         activity.logger.debug(f"Additional Notes: {additional_notes}")
-        
+
         activity.logger.info(f"...Reporting results valid.")
-        return parsed_response
+        return report_results
     
     except Exception as e:
         activity.logger.error(f"Error in LLM completion: {str(e)}")

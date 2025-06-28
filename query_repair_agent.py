@@ -33,51 +33,66 @@ async def main(auto_approve: bool, workflow_id: str) -> None:
     status = await handle.query("GetRepairStatus")
     print(f"Current repair status: {status}")
     try:
-        proposed_tools = await handle.query("GetRepairPlanningResult")
+        planning_result : dict = await handle.query("GetRepairPlanningResult")
+        proposed_tools_for_all_orders : dict = planning_result.get("proposed_tools", [])
+        additional_notes = planning_result.get("additional_notes", "")
+
     except Exception as e:
         print(f"Error querying repair planning result: {e}")
         proposed_tools = "No tools proposed yet."
-
-    try: 
-        # probably could do key/value for proposed tools
-        for order in proposed_tools["proposed_tools"]:
-            print(f"order: {order}")
-            order_id = order.get("order_id", "Unknown Order ID")
-            
-            additional_notes = order.get("additional_notes", "No additional notes provided.")
-            print(f"Additional Notes: {additional_notes}")
-            print(f"Order ID: {order_id}")
-            proposed_tools_for_order = order.get("proposed_tools", {})
-            if not proposed_tools_for_order:
-                print(f"No proposed tools found for order ID: {order_id}")
-                continue
-            if not isinstance(proposed_tools_for_order, list):
-                print(f"Expected a list for proposed tools, got {type(proposed_tools_for_order)} for order ID {order_id}")
-                continue
-            for tool_for_order in proposed_tools_for_order:
-                if not isinstance(tool_for_order, dict):
-                    print(f"Unexpected tool data format for order ID {order_id}: {tool_for_order}")
-                    continue
-                tool_name = tool_for_order.get("tool_name", "Unknown Tool Name")
-            
-                confidence_score = tool_for_order.get("confidence_score", "Unknown Confidence Score")
-            
-                print(f"Tool Name: {tool_name}")
-                print(f"- Confidence Score: {confidence_score}")
-                tool_arguments = tool_for_order.get("tool_arguments", {})
+    
+    if not proposed_tools_for_all_orders:
+        print("No proposed tools found for repair.")
+    else:
+        print("Proposed Orders to repair:")
+        for order_id, order in proposed_tools_for_all_orders.items():
+            print(f"  - {order_id}: ")
+            if not isinstance(order, list):
+                print(f"Expected a dictionary for order, got {type(list)}")
+            for tool in order:
+                confidence_score = tool.get("confidence_score", 0.0)
+                additional_notes = tool.get("additional_notes", "")
+                if additional_notes:
+                    additional_notes = f"({additional_notes})"
+                tool_name = tool.get("tool_name", "Unknown Tool Name")
+                if confidence_score < 0.5:
+                    print(f"Low confidence score for repair: {confidence_score}. Tools with low confidence will not be executed.")
+                
+                print(f"    - {tool_name}: confidence score {confidence_score} {additional_notes}")
+                tool_arguments = tool.get("tool_arguments", {})
                 if not isinstance(tool_arguments, dict):
-                    print(f"- Expected a dictionary for tool arguments, got {type(tool_arguments)} for order ID {order_id}")
-                    continue
-                if not tool_arguments:
-                    print(f"- No arguments provided for tool {tool_name} in order ID {order_id}")
-                    continue
-                print(f"- Tool Arguments: ")
-                for key, value in tool_arguments.items():
-                    print(f"  - {key}: {value}")
-            
-            print("-" * 50)
+                    print(f"Expected a dictionary for tool arguments, got {type(tool_arguments)}")
+                for arg_name, arg_value in tool_arguments.items():
+                    print(f"      - {arg_name}: {arg_value}")
+
+    try:
+        repair_result = await handle.query("GetRepairToolResults")
     except Exception as e:
-            print(f"Error printing proposed tools: {e}")
+        print(f"Error querying repair tool results: {e}")
+        repair_result = "No repair results available yet."
+    #todo print high level info about the repair result
+    print("Repair Tool Execution results:")
+    if not isinstance(repair_result, dict):
+        print(f"Expected a dictionary for repair results, got {type(repair_result)}")
+    else:
+        for key, value in repair_result.items():
+            if isinstance(value, list):
+                print(f"  - {key}: (results ommitted for brevity, {len(value)} items)")
+            else:
+                print(f"  - {key}: {value}")
+
+    
+        try:
+            repair_report = await handle.query("GetRepairReport")
+
+            report_summary = repair_report.get("report_summary", "No summary available")
+            print(f"*** Final Report: ***")
+            print(f"{report_summary}")
+        except Exception as e:
+            print(f"Error querying repair report: {e}")
+            report_result = "No repair report available yet."
+    
+    print(f"Repair status: {status}")
 
 
 if __name__ == "__main__":

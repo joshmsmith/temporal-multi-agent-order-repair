@@ -19,14 +19,22 @@ def _parse_due_date(due: str) -> datetime:
 
 
 # todo: add workflow for analyze/repair/report 
-#todo: just an activity (+workflow to run it)
+# todo: just an activity (+workflow to run it)
 # todo: run once as a tool and report results
 # todo run as a long-running tool with a loop
 # todo: run as a long-running tool with a signal to callback
-#todo add workflow starters for various types
+# todo add workflow starters for various types
 # todo hook up to MCP server
-# todo make fake data for testing
 
+#TODO: add a workflow that runs a single tool as an update operation to repair one order's problems
+
+#TODO: add a workflow that runs daily and detects problems in the system, analyzes them, optionally repairs - use schedules
+
+#TODO: add a workflow that runs all the time and sleeps for a day, then  detects problems in the system, analyzes them, optionally repairs
+
+#TODO: add a workflow that is an agent itself, with a goal and tools, does tool planning
+
+#TODO: explain automation agents vs conversational (assistive) agents, and how they can be used together
 
 '''RepairAgentWorkflow: 
 This is a Temporal Workflow that orchestrates repairs.
@@ -220,13 +228,3 @@ class RepairAgentWorkflow:
         report_summary = self.context["report_result"].get("report_summary", "No summary available")
         
         return f"Repair workflow completed with status: {self.status}. Report Summary: {report_summary}"
-
-#TODO: add a workflow that runs a single tool as an update operation to repair one order's problems
-
-#TODO: add a workflow that runs daily and detects problems in the system, analyzes them, optionally repairs - use schedules
-
-#TODO: add a workflow that runs all the time and sleeps for a day, then  detects problems in the system, analyzes them, optionally repairs
-
-#TODO: add a workflow that is an agent itself, with a goal and tools, does tool planning
-
-#TODO: explain automation agents vs conversational (assistive) agents, and how they can be used together

@@ -24,7 +24,7 @@ async def main(auto_approve: bool) -> None:
 
     # Start the workflow with an initial prompt
     start_msg = {
-        "prompt": "Analyze and repair the system.",
+        "prompt": "Analyze and repair the orders in the order system.",
         "metadata": {
             "user": user,  
             "system": "temporal-repair-agent",
@@ -52,12 +52,38 @@ async def main(auto_approve: bool) -> None:
     
     print("Repair planning is complete.")
     try:
-        proposed_tools = await handle.query("GetRepairPlanningResult")
+        planning_result : dict = await handle.query("GetRepairPlanningResult")
+        proposed_tools_for_all_orders : dict = planning_result.get("proposed_tools", [])
+        additional_notes = planning_result.get("additional_notes", "")
+
     except Exception as e:
         print(f"Error querying repair planning result: {e}")
         proposed_tools = "No tools proposed yet."
     
-    print(f"Proposed tools for repair: {proposed_tools}") #TODO replace this with a more structured output
+    if not proposed_tools_for_all_orders:
+        print("No proposed tools found for repair.")
+    else:
+        print("Proposed Orders to repair:")
+        for order_id, order in proposed_tools_for_all_orders.items():
+            print(f"  - {order_id}: ")
+            if not isinstance(order, list):
+                print(f"Expected a dictionary for order, got {type(list)}")
+            for tool in order:
+                confidence_score = tool.get("confidence_score", 0.0)
+                additional_notes = tool.get("additional_notes", "")
+                if additional_notes:
+                    additional_notes = f"({additional_notes})"
+                tool_name = tool.get("tool_name", "Unknown Tool Name")
+                if confidence_score < 0.5:
+                    print(f"Low confidence score for repair: {confidence_score}. Tools with low confidence will not be executed.")
+                
+                print(f"    - {tool_name}: confidence score {confidence_score} {additional_notes}")
+                tool_arguments = tool.get("tool_arguments", {})
+                if not isinstance(tool_arguments, dict):
+                    print(f"Expected a dictionary for tool arguments, got {type(tool_arguments)}")
+                for arg_name, arg_value in tool_arguments.items():
+                    print(f"      - {arg_name}: {arg_value}")
+
     if not auto_approve:
         print("Waiting for user approval to proceed with repairs...")
         try:
