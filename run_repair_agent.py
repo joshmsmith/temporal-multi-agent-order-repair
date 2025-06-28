@@ -90,7 +90,7 @@ async def main(auto_approve: bool) -> None:
     while not repairs_complete:
         try:
             status = await handle.query("GetRepairStatus")
-            if status == "REPORT-COMPLETED":
+            if status == "REPORT-COMPLETED" or status == "NO-REPAIRS-NEEDED":
                 repairs_complete = True
                 break
             elif status == "REPAIR-FAILED":
@@ -102,7 +102,7 @@ async def main(auto_approve: bool) -> None:
         await asyncio.sleep(5)  # Wait before checking the status again
     
     print("Repair planning is complete.")
-    
+
     # Wait for the workflow to complete
     result = await handle.result()
     print(f"Workflow completed with result: {result}")

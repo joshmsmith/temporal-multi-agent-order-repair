@@ -105,7 +105,7 @@ class RepairAgentWorkflow:
     async def run(self, inputs: dict) -> str:
         self.context["prompt"] = inputs.get("prompt", {})
         self.context["metadata"] = inputs.get("metadata", {})
-        workflow.logger.info(f"Starting repair workflow with inputs: {inputs}")
+        workflow.logger.debug(f"Starting repair workflow with inputs: {inputs}")
 
         # Execute the detection agent
         self.status = "DETECTING-PROBLEMS"
@@ -120,8 +120,15 @@ class RepairAgentWorkflow:
             ),
             heartbeat_timeout=timedelta(seconds=10),
         )
-        workflow.logger.info(f"Detection result: {self.context["detection_result"]}")
+        workflow.logger.debug(f"Detection result: {self.context["detection_result"]}")
 
+        detection_confidence_score = self.context["detection_result"].get("confidence_score", 0.0)
+        if detection_confidence_score < 0.5:
+            analysis_notes = self.context["detection_result"].get("additional_notes", "")
+            workflow.logger.info(f"Low confidence score from detection: {detection_confidence_score} ({analysis_notes}). No repair needed.")
+            self.status = "NO-REPAIR-NEEDED"
+            return f"No repair needed based on detection result: confidence score for repair: {repair_confidence_score} ({analysis_notes})"
+        
         #execute the analysis agent
         self.status = "ANALYZING-PROBLEMS"                
         self.context["analysis_result"] = await workflow.execute_activity(
@@ -134,12 +141,11 @@ class RepairAgentWorkflow:
             ),
             heartbeat_timeout=timedelta(seconds=10),
         )
-        workflow.logger.info(f"Analysis result: {self.context["analysis_result"]}")
+        workflow.logger.debug(f"Analysis result: {self.context["analysis_result"]}")
 
-        #TODO do something different with the analysis result if it doesn't indicate a need for repair
+        # If the analysis result indicates a need for repair, proceed with planning
         self.context["problems_to_repair"] = self.context["analysis_result"]
-
-        #TODO Check if the analysis result indicates a need for repair
+        
         # Execute the planning agent
         self.status = "PLANNING-REPAIR"                
         self.context["planning_result"] = await workflow.execute_activity(
@@ -152,7 +158,7 @@ class RepairAgentWorkflow:
             ),
             heartbeat_timeout=timedelta(seconds=30),
         )
-        workflow.logger.info(f"Planning result: {self.context["planning_result"]}")
+        workflow.logger.debug(f"Planning result: {self.context["planning_result"]}")
         self.planned = True
 
         # Wait for the approval or reject signal
@@ -164,9 +170,9 @@ class RepairAgentWorkflow:
         )
 
         if self.rejected:
-            workflow.logger.warning(f"REJECTED by user {self.context.get('rejected_by', 'unknown')}")
+            workflow.logger.info(f"Repair REJECTED by user {self.context.get('rejected_by', 'unknown')}")
             self.status = "REJECTED"
-            return f"REJECTED by user {self.context.get('rejected_by', 'unknown')}"
+            return f"Repair REJECTED by user {self.context.get('rejected_by', 'unknown')}"
         
         self.status = "APPROVED"
         workflow.logger.info(f"Repair approved by user {self.context.get('approved_by', 'unknown')}")
@@ -183,7 +189,7 @@ class RepairAgentWorkflow:
             ),
             heartbeat_timeout=timedelta(seconds=10),
         )
-        workflow.logger.info(f"Repair result: {self.context["repair_result"]}")
+        workflow.logger.debug(f"Repair result: {self.context["repair_result"]}")
 
         # Proceed with the report agent
         self.status = "PENDING-REPORT"
@@ -198,7 +204,7 @@ class RepairAgentWorkflow:
             heartbeat_timeout=timedelta(seconds=10),
         )
         self.status = "REPORT-COMPLETED"
-        workflow.logger.info(f"Report result: {self.context["report_result"]}")     
+        workflow.logger.debug(f"Report result: {self.context["report_result"]}")     
         
         return f"Repair workflow completed with status: {self.status}. Report: {self.context.get('report_result', 'No report generated')}"
 

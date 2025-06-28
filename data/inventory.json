@@ -571,60 +571,48 @@
       "status": "active",
       "seasonal_item": false,
       "dangerous_goods": false
-    }
-  ],
-  "inventory_summary": {
-    "total_items": 22,
-    "total_stock_value": 89247.63,
-    "items_low_stock": 5,
-    "items_critical_low": 2,
-    "items_requiring_reorder": 7,
-    "categories_tracked": 12,
-    "dangerous_goods_count": 4,
-    "seasonal_items_count": 5,
-    "average_profit_margin": 31.2,
-    "last_inventory_audit": "2024-09-01T00:00:00Z"
-  },
-  "reorder_alerts": [
-    {
-      "item_id": "CRT-FD-101",
-      "item_name": "Dragon Kibble (Grade A)",
-      "status": "URGENT - Backordered",
-      "available_stock": -355,
-      "reorder_point": 200,
-      "suggested_action": "Emergency reorder - Customer commitments exceeded stock"
     },
     {
-      "item_id": "HRB-CRK-003",
-      "item_name": "Crumple-Horned Snorkack Detection Kit",
-      "status": "CRITICAL LOW",
-      "available_stock": 2,
-      "reorder_point": 5,
-      "suggested_action": "Reorder immediately - Long lead time item"
-    },
-    {
-      "item_id": "POT-FPP-042",
-      "item_name": "Felix Felicis Potion Kit",
-      "status": "LOW STOCK",
-      "available_stock": 7,
-      "reorder_point": 10,
-      "suggested_action": "Schedule reorder within 7 days"
-    },
-    {
-      "item_id": "QLL-FTH-003",
-      "item_name": "Self-Inking Quill (Phoenix Feather)",
-      "status": "LOW STOCK",
-      "available_stock": 16,
+      "item_id": "DRG-EGG-007",
+      "item_name": "Dragon Egg - Norwegian Ridgeback",      
+      "category": "Magical Creatures - Restricted",
+      "subcategory": "Dragon Eggs",
+      "current_stock": 42,
+      "reserved_stock": 9,
+      "available_stock": 33,
       "reorder_point": 20,
-      "suggested_action": "Schedule reorder within 14 days"
-    },
-    {
-      "item_id": "LUX-WND-001",
-      "item_name": "Platinum-Inlaid Wand Case",
-      "status": "LOW STOCK",
-      "available_stock": 3,
-      "reorder_point": 3,
-      "suggested_action": "Reorder soon - Luxury item with long lead time"
+      "reorder_quantity": 60,
+      "max_stock_level": 100,
+      "unit_cost": 15.75,
+      "unit_price": 37.98,
+      "profit_margin": 22.0,
+      "supplier": "Shadeus Mysticus Dragon Sanctuary",
+      "supplier_contact": "shadey_wiz@drgns_r_us.magic",
+      "lead_time_days": 8,
+      "storage_location": "Warehouse-G, Section-RST, High-Security-Vault-Alpha",
+      "last_restocked": "2024-09-09T11:00:00Z",
+      "expiry_date": "2025-09-09",
+      "weight_kg": 8.5,
+      "dimensions_cm": "25x20x20",
+      "status": "active",
+      "seasonal_item": false,
+      "dangerous_goods": true,
+      "special_requirements": {
+        "ministry_approval": true,
+        "breeding_license": true,
+        "fireproof_storage": true,
+        "temperature_range": "15-25°C",
+        "humidity_range": "60-80%",
+        "security_clearance": "Level 4",
+        "handling_certification": "Dragon Handler Class B minimum"
+      },
+      "restrictions": {
+        "age_limit": "18+",
+        "quantity_limit_per_customer": 1,
+        "cooling_off_period": "365 days",
+        "background_check_required": true,
+        "insurance_required": "£50,000 minimum coverage"
+      }
     }
   ],
   "storage_locations": {
