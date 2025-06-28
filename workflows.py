@@ -101,6 +101,18 @@ class RepairAgentWorkflow:
             raise ApplicationError("Planning result is not available yet.")
         return self.context["planning_result"]
 
+    @workflow.query
+    async def GetRepairToolResults(self) -> str:
+        if "repair_result" not in self.context:
+            raise ApplicationError("Repair Tool Execution results are not available yet.")
+        return self.context["repair_result"]
+    
+    @workflow.query
+    async def GetRepairReport(self) -> str:
+        if "report_result" not in self.context:
+            raise ApplicationError("Repair results are not available yet.")
+        return self.context["report_result"]
+
     @workflow.run
     async def run(self, inputs: dict) -> str:
         self.context["prompt"] = inputs.get("prompt", {})
@@ -127,7 +139,7 @@ class RepairAgentWorkflow:
             analysis_notes = self.context["detection_result"].get("additional_notes", "")
             workflow.logger.info(f"Low confidence score from detection: {detection_confidence_score} ({analysis_notes}). No repair needed.")
             self.status = "NO-REPAIR-NEEDED"
-            return f"No repair needed based on detection result: confidence score for repair: {repair_confidence_score} ({analysis_notes})"
+            return f"No repair needed based on detection result: confidence score for repair: {detection_confidence_score} ({analysis_notes})"
         
         #execute the analysis agent
         self.status = "ANALYZING-PROBLEMS"                
@@ -204,9 +216,10 @@ class RepairAgentWorkflow:
             heartbeat_timeout=timedelta(seconds=10),
         )
         self.status = "REPORT-COMPLETED"
-        workflow.logger.debug(f"Report result: {self.context["report_result"]}")     
+        workflow.logger.debug(f"Report result: {self.context["report_result"]}")   
+        report_summary = self.context["report_result"].get("report_summary", "No summary available")
         
-        return f"Repair workflow completed with status: {self.status}. Report: {self.context.get('report_result', 'No report generated')}"
+        return f"Repair workflow completed with status: {self.status}. Report Summary: {report_summary}"
 
 #TODO: add a workflow that runs a single tool as an update operation to repair one order's problems
 

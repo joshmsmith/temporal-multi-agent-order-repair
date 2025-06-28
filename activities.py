@@ -353,7 +353,7 @@ async def plan_to_repair_some_stuff(input: dict) -> dict:
 
         activity.logger.info(f"Validating Planning Result...")
 
-        #TODO could put this in more structured format
+        #Note: could put this into a data structure
         proposed_tools_for_all_orders = parsed_response.get("proposed_tools", {})
         if not proposed_tools_for_all_orders:
             activity.logger.info("No proposed tools found for repair.")
@@ -386,7 +386,8 @@ async def plan_to_repair_some_stuff(input: dict) -> dict:
 
 async def repair_some_stuff(input: dict) -> dict:
     """
-    This is a an automated helper agent that repairs problems.
+    This is a an automated helper that repairs problems.
+    Note: may want to non-retry some of the data structure errors here because if the data structure isn't right, there's no point in retrying.
     """
     activity.logger.debug(f"Running repair with input: {input}")
 
@@ -397,7 +398,6 @@ async def repair_some_stuff(input: dict) -> dict:
     proposed_tools_for_all_orders = input.get("planning_result", {}).get("proposed_tools", [])
     if not proposed_tools_for_all_orders:
         activity.logger.info("No proposed tools found for repair.")
-        #TOOD return a dict message indicating no repairs needed
         return {"repair_summary": "No proposed tools found for repair."}
     for order_id, order in proposed_tools_for_all_orders.items():
         print(f"*** Repairing order: {order_id} ***")
@@ -406,15 +406,15 @@ async def repair_some_stuff(input: dict) -> dict:
             raise ApplicationError(f"Expected a dictionary for order, got {type(list)}")
         for tool in order:
             activity.heartbeat(f"Repair for order {order_id} in progress...") # heartbeat the activity per tool
-            # activity.logger.info(f"Tool: {tool}")        
+            activity.logger.debug(f"Data for tool selected: {tool}")        
             confidence_score = tool.get("confidence_score", 0.0)
-            # activity.logger.info(f"Confidence Score: {confidence_score}")
+            activity.logger.debug(f"Confidence Score: {confidence_score}")
             additional_notes = tool.get("additional_notes", "")
             if additional_notes:
                 additional_notes = f"({additional_notes})"
-            # activity.logger.info(f"Additional Notes: {additional_notes}")
+            activity.logger.debug(f"Additional Notes: {additional_notes}")
             tool_name = tool.get("tool_name", "Unknown Tool Name")
-            # activity.logger.info(f"Using tool: {tool_name}")
+            activity.logger.debug(f"Using tool: {tool_name}")
             if confidence_score < 0.5:
                 activity.logger.warning(f"Low confidence score for repair: {confidence_score}. Skipping repair for order {order_id}.")
                 problems_skipped += 1
@@ -458,16 +458,128 @@ async def repair_some_stuff(input: dict) -> dict:
 async def report_some_stuff(input: dict) -> dict:
     """
     This is an automated helper agent that reports on the repair.
-    """
-    # For now, we will simulate a report process with a sleep and a heartbeat
-    activity.logger.debug(f"Running report with input: {input}")
-    activity.heartbeat("Reporting in progress...")
-    # Simulate a report generation process
-    await sleep(2)  # Simulate a 2-second delay
-    activity.heartbeat("Reporting in progress...")
     
-    # Return a success message
-    return {"report": "Report completed successfully: With a fix swift and grand, problems vanish like sand."}
+    It uses a Large Language Model (LLM) to prepare a summary of repairs.
+    It heartbeats the activity to indicate progress
+    It uses input["repair_result"] to get the results of the repair.
+    It returns a dictionary response with the report of the repairs:
+        - orders repaired and their issues and current status
+        - any additional notes
+    """    
+
+    # Load the orders data 
+    orders_of_interest: dict = input.get("orders_of_interest", [])
+    orders_to_detect_json = load_orders_data(orders_of_interest)
+    inventory_data_json = load_inventory_data([])
+
+    activity.heartbeat("Orders, repairs, and inventory loaded, reporting in progress...")
+    
+    llm_model = os.environ.get("LLM_MODEL", "openai/gpt-4")
+    llm_key = os.environ.get("LLM_KEY")
+    if not llm_model or not llm_key:
+        exception_message = f"LLM model or key not found in environment variables."
+        activity.logger.error(exception_message)
+        raise ApplicationError(exception_message)
+    
+    tool_list = get_order_tools()
+
+    # Define the messages for the LLM completion
+    context_instructions = "You are a helpful assistant that reports on repairs to orders. " \
+    "The orders have been repaired using the tools mentioned in the input. " \
+    "Your task is to analyze the provided repair notes, orders, and inventory and create a summary " \
+    "of the repairs and their status. " \
+    "You will receive a list of orders in JSON format, " \
+    "each containing an 'order_id', 'order_date', 'status', 'items', and 'quantities'. " \
+    "You will also receive a list of repair notes that detail the repairs made to each order. " \
+    "Ensure your response is valid JSON and does not contain any markdown formatting. " \
+    "The response should be a JSON object with a key 'repair_report' that contains " \
+    "a summary of the repairs made as 'report_summary', " \
+    "a summary of order health as 'order_summary', and " \
+    "a repairs_sufficient_confidence_score of how confident you are that repairs are sufficient and orders are in a good status. " \
+    "Feel free to include additional notes in 'additional_notes' if necessary. " \
+    "The list of orders to analyze is as follows: " \
+    + json.dumps(orders_to_detect_json, indent=2)
+    context_instructions = context_instructions  + "\nThe results of repairs are as follows: " \
+    + json.dumps(input.get("repair_result", []), indent=2) 
+    context_instructions = context_instructions  + "\nThe inventory data is as follows: " \
+    + json.dumps(inventory_data_json, indent=2)
+    activity.logger.debug(f"Context instructions for LLM: {context_instructions}")
+
+    messages = [
+        {
+            "role": "system",
+            "content": context_instructions
+            + ". The current date is "
+            + DATE_FOR_ANALYSIS.strftime("%B %d, %Y"),
+        },
+    ]
+
+    try:
+        completion_kwargs = {
+            "model": llm_model,
+            "messages": messages,
+            "api_key": llm_key,
+        }
+
+        response = completion(**completion_kwargs)
+
+        response_content = response.choices[0].message.content
+        activity.logger.debug(f"Raw LLM response: {repr(response_content)}")
+        activity.logger.debug(f"LLM response content: {response_content}")
+        activity.logger.debug(f"LLM response type: {type(response_content)}")
+        activity.logger.debug(
+            f"LLM response length: {len(response_content) if response_content else 'None'}"
+        )
+
+        if not response_content:
+            exception_message = "LLM response content is empty."
+            activity.logger.error(exception_message)
+            raise ApplicationError(exception_message)
+        
+        activity.logger.debug(f"Sanitizing response content: {repr(response_content)}")
+        response_content = sanitize_json_response(response_content)
+        activity.logger.debug(f"Sanitized response: {repr(response_content)}")
+        parsed_response: dict = parse_json_response(response_content)
+
+        activity.logger.info(f"Validating Reporting Result...")
+
+        #Note: could put this into a data structure
+        report_results = parsed_response.get("repair_report", {})
+        if not report_results:
+            activity.logger.info("No repair report found.")
+            return {"report": "No repair report found."}
+        activity.logger.debug(f"Repair report results: {report_results}")
+        activity.logger.info(f"Number of orders in repair report: {len(report_results)}")
+        if not isinstance(report_results, dict):
+            activity.logger.error(f"Expected a dictionary for repair report results, got {type(report_results)}")
+            raise ApplicationError(f"Expected a dictionary for repair report results, got {type(report_results)}")
+        else:
+            activity.logger.debug(f"Repair report results type: {type(report_results)}")
+        report_summary = report_results.get("report_summary", "No summary provided.")
+        activity.logger.debug(f"Report Summary: {report_summary}")
+        order_summary = report_results.get("order_summary", {})
+        if not order_summary:
+            activity.logger.info("No order summary found in repair report.")
+        else:
+            activity.logger.debug(f"Order summary: {order_summary}")
+            if not isinstance(order_summary, dict):
+                activity.logger.error(f"Expected a dictionary for order summary, got {type(order_summary)}")
+                raise ApplicationError(f"Expected a dictionary for order summary, got {type(order_summary)}")
+            else:
+                activity.logger.debug(f"Order summary type: {type(order_summary)}")
+        repairs_sufficient_confidence_score = report_results.get("repairs_sufficient_confidence_score", 0.0)
+        activity.logger.debug(f"Repairs sufficient confidence score: {repairs_sufficient_confidence_score}")
+        additional_notes = report_results.get("additional_notes", "")
+        if additional_notes:
+            additional_notes = f"({additional_notes})"
+        activity.logger.debug(f"Additional Notes: {additional_notes}")
+        
+        activity.logger.info(f"...Reporting results valid.")
+        return parsed_response
+    
+    except Exception as e:
+        activity.logger.error(f"Error in LLM completion: {str(e)}")
+        raise   
 
 def sanitize_json_response(response_content: str) -> str:
         """
@@ -554,7 +666,7 @@ def get_order_tools() -> dict:
     This can be used to dynamically load tools based on the context.
     """
     # Define the tools
-    #TODO could load these from a config file, build them from a registry, or use MCP
+    # Note: could load these from a config file, build them from a registry, or use MCP
     tool_list = [
         {
             "tool_name": "request_approval_tool",
@@ -631,7 +743,6 @@ def request_approval_tool(inputs: dict) -> dict:
 
     print(f"### MAGICAL APPROVER AUTOWAND ENGAGED ###")
     print(f"### RESPOONSE: APPROVER AUTOWAND APPROVED ###")
-    # todo update the order status in orders.json to approved
     with open(Path(__file__).resolve().parent / "data" / "orders.json", "r") as orders_file:
         orders_data = json.load(orders_file)
         orders = orders_data.get("orders", [])
@@ -737,7 +848,6 @@ def request_payment_update_tool(inputs: dict) -> dict:
     print(f"### MAGICAL PAYMENT UPDATE REQUEST ENGAGED ###")
     print(f"### RESPOONSE: PAYMENT UPDATE REQUEST SENT ###")
 
-    # todo update the order status in orders.json to payment_update_requested
     with open(Path(__file__).resolve().parent / "data" / "orders.json", "r") as orders_file:
         orders_data = json.load(orders_file)
         orders = orders_data.get("orders", [])
