@@ -753,7 +753,7 @@ def request_approval_tool(inputs: dict) -> dict:
         # Find the order to update
         for order in orders:
             if order["order_id"] == order_id:
-                order["status"] = "preparing-shipment"
+                order["status"] = "approved-preparing-shipment"
                 break
     with open(Path(__file__).resolve().parent / "data" / "orders.json", "w") as orders_file:
         json.dump(orders_data, orders_file, indent=2)
