@@ -36,6 +36,8 @@ poetry run python run_worker.py
 poetry run python run_repair_agent.py
 ```
 
+#todo: mention install mcp
+#todo: mention add various workflows
 ## 5. Results
 
 ### What's Cool About This:

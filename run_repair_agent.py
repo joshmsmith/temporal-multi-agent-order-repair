@@ -39,7 +39,6 @@ async def main(auto_approve: bool) -> None:
     )
     print(f"{user}'s Repair Workflow started with ID: {handle.id}")
 
-    proposed_tools : str = "No tools proposed yet."
     repairs_planned = False
     while not repairs_planned:
         try:
@@ -108,7 +107,6 @@ async def main(auto_approve: bool) -> None:
             print(f"Error querying repair approval status: {e}")
     else:
         print("Auto-approval is enabled. Proceeding with repair workflow.")
-    if(auto_approve):
         print("Auto-approving the repair workflow")
         await handle.signal("ApproveRepair", user)
 
