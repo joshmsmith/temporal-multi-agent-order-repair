@@ -3,16 +3,13 @@ import uuid
 import os
 
 from shared.config import TEMPORAL_TASK_QUEUE, get_temporal_client
+from temporalio.client import WorkflowExecutionAsyncIterator
 from workflows import RepairAgentWorkflow
 from dotenv import load_dotenv
 
 import argparse
+from temporalio.client import WorkflowExecutionAsyncIterator
 parser = argparse.ArgumentParser(description="Query a repair agent workflow.")
-parser.add_argument(
-    "--auto-approve",
-    action="store_true",
-    help="Automatically approve the repair workflow without user input.",
-)
 parser.add_argument(
     "--workflow-id",
     type=str,
@@ -21,56 +18,63 @@ parser.add_argument(
 )
 args = parser.parse_args() 
 
-async def main(auto_approve: bool, workflow_id: str) -> None:
+async def main(workflow_id: str) -> None:
+    """Query the repair agent workflow for its status and results.
+    Used to check the status of a repair workflow and get details about proposed repairs and results."""
     # Load environment variables
     load_dotenv(override=True)
     user = os.environ.get("USER_NAME", "Harry.Potter") 
     print(f"Using user: {user}")
     # Create client connected to server at the given address
     client = await get_temporal_client()
+    #workflows : WorkflowExecutionAsyncIterator = client.list_workflows(    'WorkflowType="RepairAgentWorkflow"')
     handle = client.get_workflow_handle(workflow_id=workflow_id)
     print(f"Workflow handle: {handle}")
-    status = await handle.query("GetRepairStatus")
-    print(f"Current repair status: {status}")
+    try:
+        status = await handle.query("GetRepairStatus")
+        print(f"Current repair status: {status}")
+    except Exception as e:
+        print(f"Error querying repair status: {e}")
+        status = "Unknown"
+
     try:
         planning_result : dict = await handle.query("GetRepairPlanningResult")
         proposed_tools_for_all_orders : dict = planning_result.get("proposed_tools", [])
         additional_notes = planning_result.get("additional_notes", "")
-
+   
+        if not proposed_tools_for_all_orders:
+            print("No proposed tools found for repair.")
+        else:
+            print("Proposed Orders to repair:")
+            for order_id, order in proposed_tools_for_all_orders.items():
+                print(f"  - {order_id}: ")
+                if not isinstance(order, list):
+                    print(f"Expected a dictionary for order, got {type(list)}")
+                for tool in order:
+                    confidence_score = tool.get("confidence_score", 0.0)
+                    additional_notes = tool.get("additional_notes", "")
+                    if additional_notes:
+                        additional_notes = f"({additional_notes})"
+                    tool_name = tool.get("tool_name", "Unknown Tool Name")
+                    if confidence_score < 0.5:
+                        print(f"Low confidence score for repair: {confidence_score}. Tools with low confidence will not be executed.")
+                    
+                    print(f"    - {tool_name}: confidence score {confidence_score} {additional_notes}")
+                    tool_arguments = tool.get("tool_arguments", {})
+                    if not isinstance(tool_arguments, dict):
+                        print(f"Expected a dictionary for tool arguments, got {type(tool_arguments)}")
+                    for arg_name, arg_value in tool_arguments.items():
+                        print(f"      - {arg_name}: {arg_value}")
     except Exception as e:
         print(f"Error querying repair planning result: {e}")
         proposed_tools = "No tools proposed yet."
-    
-    if not proposed_tools_for_all_orders:
-        print("No proposed tools found for repair.")
-    else:
-        print("Proposed Orders to repair:")
-        for order_id, order in proposed_tools_for_all_orders.items():
-            print(f"  - {order_id}: ")
-            if not isinstance(order, list):
-                print(f"Expected a dictionary for order, got {type(list)}")
-            for tool in order:
-                confidence_score = tool.get("confidence_score", 0.0)
-                additional_notes = tool.get("additional_notes", "")
-                if additional_notes:
-                    additional_notes = f"({additional_notes})"
-                tool_name = tool.get("tool_name", "Unknown Tool Name")
-                if confidence_score < 0.5:
-                    print(f"Low confidence score for repair: {confidence_score}. Tools with low confidence will not be executed.")
-                
-                print(f"    - {tool_name}: confidence score {confidence_score} {additional_notes}")
-                tool_arguments = tool.get("tool_arguments", {})
-                if not isinstance(tool_arguments, dict):
-                    print(f"Expected a dictionary for tool arguments, got {type(tool_arguments)}")
-                for arg_name, arg_value in tool_arguments.items():
-                    print(f"      - {arg_name}: {arg_value}")
 
     try:
         repair_result = await handle.query("GetRepairToolResults")
     except Exception as e:
         print(f"Error querying repair tool results: {e}")
         repair_result = "No repair results available yet."
-    #todo print high level info about the repair result
+        
     print("Repair Tool Execution results:")
     if not isinstance(repair_result, dict):
         print(f"Expected a dictionary for repair results, got {type(repair_result)}")
@@ -96,4 +100,4 @@ async def main(auto_approve: bool, workflow_id: str) -> None:
 
 
 if __name__ == "__main__":
-    asyncio.run(main(args.auto_approve, args.workflow_id))
+    asyncio.run(main(args.workflow_id))

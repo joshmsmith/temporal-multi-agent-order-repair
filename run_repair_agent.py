@@ -16,6 +16,11 @@ parser.add_argument(
 args = parser.parse_args() 
 
 async def main(auto_approve: bool) -> None:
+    """Run the repair agent workflow.
+    This workflow analyzes and repairs orders in the order system.
+    It will propose repairs and wait for user approval before executing them.
+    Use the --auto-approve flag to skip user approval and proceed with repairs automatically."""
+    
     # Load environment variables
     load_dotenv(override=True)
     user = os.environ.get("USER_NAME", "Harry.Potter") 
@@ -125,8 +130,6 @@ async def main(auto_approve: bool) -> None:
             print(f"Error querying repair status: {e}")
         await asyncio.sleep(5)  # Wait before checking the status again
     
-    print("Repair planning is complete.")
-
     # Wait for the workflow to complete
     result = await handle.result()
     print(f"Workflow completed with result: {result}")

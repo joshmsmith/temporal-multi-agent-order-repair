@@ -32,15 +32,65 @@ poetry run python run_worker.py
 ```
 
 ## 4. Start Various Workflows
+### Repair Agent
+Repair Agent executes the detect/analyze/repair cycle once:
+1. Detects problems
+2. Analyzes problems
+3. Proposes repairs
+4. Waits for approval
+5. Executes repairs
+6. Reports on its actions
+#TODO could make this a diagram
 ```bash
-poetry run python run_repair_agent.py
+poetry run python run_repair_agent.py  --auto-approve
+```
+Optionally you can auto-approve the repairs:
+```bash
+poetry run python run_repair_agent_periodic.py --auto-approve
+```
+Or you can approve it using the Temporal UI or included script:
+```bash
+poetry run python ./approve_repair_for_agent.py --workflow-id "repair-Josh-49c94bb5-d7a6-4a25-a8a3-39f0bf800f91"
 ```
 
-#todo: mention install mcp
-#todo: mention add various workflows
+You can also hook this up to an MCP Client using the included `mcp_server.py`. 
+WSL config:
+```JSON
+    "order_repair_agent": {
+      "disabled": false,
+      "timeout": 60,
+      "type": "stdio",
+      "command": "wsl.exe",
+      "args": [
+        "--cd",
+        "/path/to/temporal-multi-agent",
+        "--",
+        "poetry",
+        "run",
+        "python",
+        "mcp_server.py"
+      ]
+    }
+```
+Here's how it looks with Claude:
+<img src="./assets/claude-repair-success.png" width="50%" alt="Claude Success">
+
+### Proactive Repair Agent
+This proactive agent executes detection and analysis periodically, and notifies if it finds problems. 
+It will wait for approval before proceeding with the repair. It _recommends_ repair actions but doesn't do it's own decision making
+1. Detects problems
+2. Analyzes problems
+3. Proposes repairs
+4. Notify that there are problems
+5. Waits for approval
+6. Executes repairs
+7. Reports on its actions
+8. Wait a day, start again from the top
+#todo good to diagram
+
 ## 5. Results
-
-### What's Cool About This:
-
 #todo talk about the ingredients (detect, analyze, Action, Report)
 #todo talk about the styles: single activity, multiple activities, proactive/scheduled, proactive/looping, supervised
+
+### What's Cool About This:
+#todo talk about long running interactive agents, proactive agents, self-repairing workflows
