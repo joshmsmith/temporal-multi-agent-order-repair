@@ -15,21 +15,9 @@ with workflow.unsafe.imports_passed_through():
 
 ITERATIONS_BEFORE_CONTINUE_AS_NEW = 10  # Number of iterations before exiting the workflow
 
-# todo: add workflow for analyze/repair/report 
-# todo: just an activity (+workflow to run it)
-# todo: run once as a tool and report results
-# todo run as a long-running tool with a loop
-# todo: run as a long-running tool with a signal to callback
-# todo add workflow starters for various types
-# todo hook up to MCP server
-
 #TODO: add a workflow that runs a single tool as an update operation to repair one order's problems
-
 #TODO: add a workflow that runs daily and detects problems in the system, analyzes them, optionally repairs - use schedules
 
-#TODO: add a workflow that is an agent itself, with a goal and tools, does tool planning
-
-#TODO: explain automation agents vs conversational (assistive) agents, and how they can be used together
 
 '''RepairAgentWorkflow: 
 This is a Temporal Workflow that orchestrates repairs.

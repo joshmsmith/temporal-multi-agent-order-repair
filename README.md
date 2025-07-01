@@ -92,5 +92,7 @@ It will wait for approval before proceeding with the repair. It _recommends_ rep
 #todo talk about the ingredients (detect, analyze, Action, Report)
 #todo talk about the styles: single activity, multiple activities, proactive/scheduled, proactive/looping, supervised
 
+#TODO: explain automation agents vs conversational (assistive) agents, and how they can be used together
+
 ### What's Cool About This:
 #todo talk about long running interactive agents, proactive agents, self-repairing workflows
