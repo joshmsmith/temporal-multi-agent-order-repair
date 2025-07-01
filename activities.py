@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from litellm import completion
 from temporalio.exceptions import ApplicationError
+from shared.config import TEMPORAL_TASK_QUEUE, get_temporal_client
 
 load_dotenv(override=True)
 
@@ -53,6 +54,10 @@ async def analyze(input: dict) -> dict:
 @activity.defn
 async def plan_repair(input: dict) -> dict:
     return await plan_to_repair_some_stuff(input)
+
+@activity.defn
+async def notify(input: dict) -> dict:
+    return await notify_interested_parties(input)
 
 @activity.defn
 async def repair(input: dict) -> dict:
@@ -383,6 +388,41 @@ async def plan_to_repair_some_stuff(input: dict) -> dict:
     except Exception as e:
         activity.logger.error(f"Error in LLM completion: {str(e)}")
         raise   
+
+async def notify_interested_parties(input: dict) -> dict:
+    """ This is a function that notifies interested parties about the repair planning results.
+    In a real application it could send notifications via email, SMS, or other channels.
+    For this one it fake-emails and can send a signal.
+    """
+    #todo get callback info from inputs
+    notification_info = input.get("notification_info")
+    print(f"Notification info: {notification_info}")
+    if not notification_info or not isinstance(notification_info, dict):
+        activity.logger.warning("Improper notification info provided, skipping notification.")
+        return {
+            "notification_status": "Improper notification info provided.",
+        }
+    if notification_info.get("type", "") == "email":
+        #todo fake send email here
+        activity.logger.info(f"Sending email to {notification_info.get('email', 'unknown')} with subject: {notification_info.get('subject', 'No Subject')}")
+    elif notification_info.get("type", "") == "signal-workflow":
+        signal_wf_id = notification_info.get("workflow_id", "agent-workflow")
+        signal_name = notification_info.get("name", "add_external_message")
+        client = await get_temporal_client()
+        handle = client.get_workflow_handle(workflow_id=signal_wf_id)
+        await handle.signal(signal_name, "REPAIR PLANNING STATUS: ready to review proposed tools for repair. " )
+        
+    else:
+        activity.logger.warning("Unsupported notification type, skipping notification.")
+        return {
+            "notification_status": "Unsupported interested parties to notify.",
+            "notification_details": "Unsupported notification type provided."
+        }
+
+    return {
+        "notification_status": "Interested parties notified.",
+        "notification_details": "This is a placeholder for notification details."
+    }
 
 async def repair_some_stuff(input: dict) -> dict:
     """

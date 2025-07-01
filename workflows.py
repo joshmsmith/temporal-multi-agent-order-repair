@@ -8,13 +8,9 @@ from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError, ApplicationError
 
 with workflow.unsafe.imports_passed_through():
-    from activities import analyze, detect, plan_repair, repair, report
+    from activities import analyze, detect, plan_repair, notify, repair, report
 
 
-def _parse_due_date(due: str) -> datetime:
-    if due.endswith("Z"):
-        due = due[:-1] + "+00:00"
-    return datetime.fromisoformat(due)
 
 
 ITERATIONS_BEFORE_CONTINUE_AS_NEW = 10  # Number of iterations before exiting the workflow
@@ -53,6 +49,8 @@ class RepairAgentWorkflow:
     @workflow.signal
     async def ApproveRepair(self, approver: str) -> None:
         self.approved = True
+        if approver is None or approver == "":
+            approver = self.context.get("metadata", {}).get("user", "unknown")
         self.context["approved_by"] = approver
 
     @workflow.signal
@@ -127,7 +125,7 @@ class RepairAgentWorkflow:
         workflow.logger.debug(f"Starting repair workflow with inputs: {inputs}")
 
         # Execute the detection agent
-        self.status = "DETECTING-PROBLEMS"
+        set_workflow_status(self, "DETECTING-PROBLEMS")
         workflow.logger.info("Detecting problems in the system")
         self.context["detection_result"] = await workflow.execute_activity(
             detect,
@@ -145,11 +143,11 @@ class RepairAgentWorkflow:
         if detection_confidence_score < 0.5:
             analysis_notes = self.context["detection_result"].get("additional_notes", "")
             workflow.logger.info(f"Low confidence score from detection: {detection_confidence_score} ({analysis_notes}). No repair needed.")
-            self.status = "NO-REPAIR-NEEDED"
+            set_workflow_status(self, "NO-REPAIR-NEEDED")
             return f"No repair needed based on detection result: confidence score for repair: {detection_confidence_score} ({analysis_notes})"
         
         #execute the analysis agent
-        self.status = "ANALYZING-PROBLEMS"                
+        set_workflow_status(self, "ANALYZING-PROBLEMS")
         self.context["analysis_result"] = await workflow.execute_activity(
             analyze,
             self.context,
@@ -166,7 +164,7 @@ class RepairAgentWorkflow:
         self.context["problems_to_repair"] = self.context["analysis_result"]
         
         # Execute the planning agent
-        self.status = "PLANNING-REPAIR"                
+        set_workflow_status(self, "PLANNING-REPAIR")
         self.context["planning_result"] = await workflow.execute_activity(
             plan_repair,
             self.context,
@@ -181,7 +179,7 @@ class RepairAgentWorkflow:
         self.planned = True
 
         # Wait for the approval or reject signal
-        self.status = "PENDING-APPROVAL"
+        set_workflow_status(self, "PENDING-APPROVAL")
         workflow.logger.info(f"Waiting for approval for repair")
         await workflow.wait_condition(
             lambda: self.approved is not False or self.rejected is not False,
@@ -190,14 +188,14 @@ class RepairAgentWorkflow:
 
         if self.rejected:
             workflow.logger.info(f"Repair REJECTED by user {self.context.get('rejected_by', 'unknown')}")
-            self.status = "REJECTED"
+            set_workflow_status(self, "REJECTED")
             return f"Repair REJECTED by user {self.context.get('rejected_by', 'unknown')}"
         
-        self.status = "APPROVED"
+        set_workflow_status(self, "APPROVED")
         workflow.logger.info(f"Repair approved by user {self.context.get('approved_by', 'unknown')}")
 
         # Proceed with the repair agent
-        self.status = "PENDING-REPAIR"
+        set_workflow_status(self, "PENDING-REPAIR")
         self.context["repair_result"] = await workflow.execute_activity(
             repair,
             self.context,
@@ -211,7 +209,7 @@ class RepairAgentWorkflow:
         workflow.logger.debug(f"Repair result: {self.context["repair_result"]}")
 
         # Proceed with the report agent
-        self.status = "PENDING-REPORT"
+        set_workflow_status(self, "PENDING-REPORT")
         self.context["report_result"] = await workflow.execute_activity(
             report,
             self.context,
@@ -222,7 +220,7 @@ class RepairAgentWorkflow:
             ),
             heartbeat_timeout=timedelta(seconds=10),
         )
-        self.status = "REPORT-COMPLETED"
+        set_workflow_status(self, "REPORT-COMPLETED")
         workflow.logger.debug(f"Report result: {self.context["report_result"]}")   
         report_summary = self.context["report_result"].get("report_summary", "No summary available")
         
@@ -338,13 +336,15 @@ class RepairAgentWorkflowProactive:
     async def run(self, inputs: dict) -> str:
         self.context["prompt"] = inputs.get("prompt", {})
         self.context["metadata"] = inputs.get("metadata", {})
+        self.context["notification_info"] = inputs.get("callback", None)
         workflow.logger.debug(f"Starting repair workflow with inputs: {inputs}")
 
         while not self.exit_requested and not self.continue_as_new_requested and self.iteration_count < ITERATIONS_BEFORE_CONTINUE_AS_NEW:
             self.iteration_count += 1
             # Execute the detection agent
             self.approved = False
-            self.status = "DETECTING-PROBLEMS"
+            
+            set_workflow_status(self, "DETECTING-PROBLEMS")
             workflow.logger.info("Detecting problems in the system")
             self.context["detection_result"] = await workflow.execute_activity(
                 detect,
@@ -362,11 +362,11 @@ class RepairAgentWorkflowProactive:
             if detection_confidence_score < 0.5:
                 analysis_notes = self.context["detection_result"].get("additional_notes", "")
                 workflow.logger.info(f"Low confidence score from detection: {detection_confidence_score} ({analysis_notes}). No repair needed.")
-                self.status = "NO-REPAIR-NEEDED"
+                set_workflow_status(self, "NO-REPAIR-NEEDED")
                 return f"No repair needed based on detection result: confidence score for repair: {detection_confidence_score} ({analysis_notes})"
             
             #execute the analysis agent
-            self.status = "ANALYZING-PROBLEMS"                
+            set_workflow_status(self, "ANALYZING-PROBLEMS")           
             self.context["analysis_result"] = await workflow.execute_activity(
                 analyze,
                 self.context,
@@ -383,7 +383,7 @@ class RepairAgentWorkflowProactive:
             self.context["problems_to_repair"] = self.context["analysis_result"]
             
             # Execute the planning agent
-            self.status = "PLANNING-REPAIR"                
+            set_workflow_status(self, "PLANNING-REPAIR")
             self.context["planning_result"] = await workflow.execute_activity(
                 plan_repair,
                 self.context,
@@ -397,10 +397,20 @@ class RepairAgentWorkflowProactive:
             workflow.logger.debug(f"Planning result: {self.context["planning_result"]}")
             self.planned = True
 
-            #TODO add notification to user that repair is needed, and what the plan is
+            # Notify the user about the planned repairs
+            await workflow.execute_activity(
+                notify, 
+                self.context,
+                start_to_close_timeout=timedelta(minutes=5),
+                retry_policy=RetryPolicy(
+                    initial_interval=timedelta(seconds=1),
+                    maximum_interval=timedelta(seconds=30),  
+                ),
+                heartbeat_timeout=timedelta(seconds=30),
+            )
 
             # Wait for the approval or reject signal
-            self.status = "PENDING-APPROVAL"
+            set_workflow_status(self, "PENDING-APPROVAL")
             workflow.logger.info(f"Waiting for approval for repair")
             await workflow.wait_condition(
                 lambda: self.approved is not False or self.rejected is not False,
@@ -409,14 +419,14 @@ class RepairAgentWorkflowProactive:
 
             if self.rejected:
                 workflow.logger.info(f"Repair REJECTED by user {self.context.get('rejected_by', 'unknown')}")
-                self.status = "REJECTED"
+                set_workflow_status(self, "REJECTED")
                 return f"Repair REJECTED by user {self.context.get('rejected_by', 'unknown')}"
             
-            self.status = "APPROVED"
+            set_workflow_status(self, "APPROVED")
             workflow.logger.info(f"Repair approved by user {self.context.get('approved_by', 'unknown')}")
 
             # Proceed with the repair agent
-            self.status = "PENDING-REPAIR"
+            set_workflow_status(self, "PENDING-REPAIR")
             self.context["repair_result"] = await workflow.execute_activity(
                 repair,
                 self.context,
@@ -430,7 +440,7 @@ class RepairAgentWorkflowProactive:
             workflow.logger.debug(f"Repair result: {self.context["repair_result"]}")
 
             # Proceed with the report agent
-            self.status = "PENDING-REPORT"
+            set_workflow_status(self, "PENDING-REPORT")
             self.context["report_result"] = await workflow.execute_activity(
                 report,
                 self.context,
@@ -441,12 +451,12 @@ class RepairAgentWorkflowProactive:
                 ),
                 heartbeat_timeout=timedelta(seconds=10),
             )
-            self.status = "REPORT-COMPLETED"
+            set_workflow_status(self, "REPORT-COMPLETED")
             workflow.logger.debug(f"Report result: {self.context["report_result"]}")   
             report_summary = self.context["report_result"].get("report_summary", "No summary available")
             workflow.logger.info(f"Repair completed with status: {self.status}. Report Summary: {report_summary}") 
             
-            self.status = "WAITING-FOR-NEXT-CYCLE"  
+            set_workflow_status(self, "WAITING-FOR-NEXT-CYCLE")
             await workflow.wait_condition(
                 lambda: self.exit_requested is True or 
                         self.continue_as_new_requested is True or
@@ -468,3 +478,16 @@ class RepairAgentWorkflowProactive:
             )
             await workflow.wait_condition(lambda: workflow.all_handlers_finished())
         return "Repair workflow continued as new with status: WAITING-FOR-NEXT-CYCLE."
+
+# workflow helper functions
+def set_workflow_status(self, status: str) -> None: 
+    """Set the current status of the workflow."""
+    self.status = status
+    details : str
+    # set workflow current details in Markdown format. Include status, iteration count, and timestamp.
+    details = f"## Workflow Status \n\n" \
+              f"- **Phase:** {status}\n" \
+              f"- **Iteration:** {self.iteration_count}\n" \
+              f"- **Last Status Set:** {workflow.now().isoformat()}\n"
+    workflow.set_current_details(details)
+    workflow.logger.debug(f"Workflow status set to: {status}")

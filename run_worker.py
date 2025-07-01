@@ -44,6 +44,7 @@ async def run_worker() -> None:
                     activities.detect,
                     activities.analyze, 
                     activities.plan_repair,
+                    activities.notify,
                     activities.repair, 
                     activities.report],
     )

@@ -36,6 +36,22 @@ async def main(auto_approve: bool) -> None:
             "user": user,  
             "system": "temporal-repair-agent",
         },
+        # Add this to enable the callback for a workflow
+        # "callback": {
+        #     "type": "signal-workflow",
+        #     "name": "add_external_message",
+        #     "task_queue": "agent-task-queue",
+        #     "workflow_id": "agent-workflow",
+        #     "args": "message: Union[str, Dict[str, Any]]"
+        # },
+        # Uncomment this to enable email notifications (requires email setup)
+        # "callback": {
+        #     "type": "email",
+        #     "name": "email_callback",
+        #     "subject": "Repair Agent Notification",
+        #     "email": "repair-notify@yourcompany.com",
+        #     "args": "message: Union[str, Dict[str, Any]]""
+        # },
     }
     
     handle = await client.start_workflow(
