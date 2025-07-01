@@ -17,10 +17,13 @@ ITERATIONS_BEFORE_CONTINUE_AS_NEW = 10  # Number of iterations before exiting th
 
 #TODO: add a workflow that runs a single tool as an update operation to repair one order's problems
 #TODO: add a workflow that runs daily and detects problems in the system, analyzes them, optionally repairs - use schedules
+#TODO: add a workflow that uses confidence score instead of waiting for approval, and runs automatically if the score is high enough
+    #todo or make that an option for the proactive workflow
 
 
 '''RepairAgentWorkflow: 
-This is a Temporal Workflow that orchestrates repairs.
+This is an agent implemented as a Temporal Workflow that orchestrates repairs.
+Key logic is in the planning activity.
 It will analyze the system, repair it, and report the results.
 It will wait for approval before proceeding with the repair.
 It will also allow for rejection of the repair.
@@ -215,9 +218,10 @@ class RepairAgentWorkflow:
         return f"Repair workflow completed with status: {self.status}. Report Summary: {report_summary}"
 
 '''RepairAgentWorkflowProactive: 
-This is a Temporal Workflow that orchestrates repairs.
+This is an agent implemented as a Temporal Workflow that orchestrates repairs.
+Key logic is in the planning activity.
 It runs periodically to detect and repair problems in the system.
-It will analyze the system, repair it, and report the results.
+It will proactively detect problems and propose repairs.
 It will wait for approval before proceeding with the repair.
 It will also allow for rejection of the repair.
 Tools are static Activities that implement automated helper agents.'''
