@@ -214,7 +214,7 @@ class RepairAgentWorkflow:
         
         return f"Repair workflow completed with status: {self.status}. Report Summary: {report_summary}"
 
-'''RepairAgentWorkflow: 
+'''RepairAgentWorkflowProactive: 
 This is a Temporal Workflow that orchestrates repairs.
 It runs periodically to detect and repair problems in the system.
 It will analyze the system, repair it, and report the results.
