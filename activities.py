@@ -394,7 +394,6 @@ async def notify_interested_parties(input: dict) -> dict:
     In a real application it could send notifications via email, SMS, or other channels.
     For this one it fake-emails and can send a signal.
     """
-    #todo get callback info from inputs
     notification_info = input.get("notification_info")
     if not notification_info or not isinstance(notification_info, dict):
         activity.logger.warning("No notification info provided, skipping notification.")
@@ -402,7 +401,7 @@ async def notify_interested_parties(input: dict) -> dict:
             "notification_status": "Improper notification info provided.",
         }
     if notification_info.get("type", "") == "email":
-        #todo fake send email here
+        #fake send email here
         activity.logger.info(f"Sending email to {notification_info.get('email', 'unknown')} with subject: {notification_info.get('subject', 'No Subject')}")
     elif notification_info.get("type", "") == "signal-workflow":
         signal_wf_id = notification_info.get("workflow_id", "agent-workflow")

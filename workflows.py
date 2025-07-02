@@ -13,9 +13,7 @@ with workflow.unsafe.imports_passed_through():
 ITERATIONS_BEFORE_CONTINUE_AS_NEW = 10  # Number of iterations before exiting the workflow
 
 #TODO: add a workflow that runs a single tool as an update operation to repair one order's problems
-#TODO: add a workflow that runs daily and detects problems in the system, analyzes them, optionally repairs - use schedules
-#TODO: add a workflow that uses confidence score instead of waiting for approval, and runs automatically if the score is high enough
-    #todo or make that an option for the proactive workflow
+#TODO: add a scheduled workflow that runs daily and detects problems in the system, analyzes them, optionally repairs 
 
 
 '''RepairAgentWorkflow: 
