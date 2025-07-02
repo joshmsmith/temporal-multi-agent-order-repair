@@ -4,6 +4,11 @@ These agents are automation agents who accomplish tasks intelligently and indepe
 They are _not_ conversational. These agents are exposed as tools (via MCP) so they can be used 
 by an MCP client.
 
+We will demonstrate several kinds of agents:
+- a long-lived, interactive agent as MCP tools - TODO link to down below
+- simple single-task agents
+- a proactive agent
+
 ## Harry Potter and the School Supplies Problem
 Harry, Ron, Hermione and friends want to get supplies for the next year at Hogwarts. 
 The orders are in the system ([orders data](./data/orders.json)), and there is an inventory database as well ([inventory](./data/inventory.json)).
@@ -37,6 +42,7 @@ This system demonstrates an agentic pattern I call DAPRR: detect, analyze, plan,
 Automation agents often do this DAPRR sequence, or a subset, such as analysis, planning, and repair. <br />
 Notes:
 - Detection can often be a less expensive version of analysis, such as getting _if any_ orders need analysis
+  - it could be skipped entirely if the system can be notified when there is a problem
 - Planning is a key step - it allows a human to review and approve the plans
 - This is a long-running human-in-the-loop agentic process, so it needs durability, interaction, and state (memory). In this sample, we do that with a Temporal Workflow.
 
@@ -49,7 +55,7 @@ This pattern is applicable to **many kinds** of systems. Anything that a human h
 
 ### Repair System Overview: 
 <img src="./assets/order-repair-overview.png" width="90%" alt="Order Repair Overview">
-The user interacts with the repair process, can query it for status and what it's doing, and approve repairs.
+The user interacts with the repair process, can query it for status and what it's doing or proposing to do, and approve repairs.
 The tools are executed durably with Temporal - in this case an agentic workflow that takes some steps on its own, using AI.
 
 ## Prerequisites:
@@ -84,25 +90,27 @@ This agent is:
 - a tool that takes action for an agent
 - an agent that makes decisions (such as planning & proposing tools)
 - an orchestrator of other agents (such as the Analysis and Reporting Agents - who are much simpler)
+- a Temporal Workflow - dynamically taking action to accomplish the repair 
+
 ([related definitions](https://temporal.io/blog/building-an-agentic-system-thats-actually-production-ready#agentic-systems-definitions))
 
-**Note:** It does update the inventory and orders data as it repairs. (You can reset the data between runs by discarding the changes it makes and refreshing from the git repo.)
+**Note:** It does update the inventory and orders data as it repairs. You can look at the data files after it runs to see changes. You can reset the data between runs by discarding the changes it makes and refreshing from the git repo.
 
 #### Terminal
 An easy way to understand what it's doing is to kick it off via a terminal:
 ```bash
-poetry run python run_repair_agent.py  --auto-approve
+poetry run python run_repair_agent.py 
 ```
 Optionally you can auto-approve the repairs:
 ```bash
-poetry run python run_repair_agent_periodic.py --auto-approve
+poetry run python run_repair_agent.py  --auto-approve
 ```
 Or you can approve it using the Temporal UI or included script:
 ```bash
 poetry run python ./approve_repair_for_agent.py --workflow-id "repair-Josh-49c94bb5-d7a6-4a25-a8a3-39f0bf800f91"
 ```
 
-Here's what it looks like:
+Here's what the output looks like:
 ```none
 poetry run python run_repair_agent.py --auto-approve
 Client connection: [localhost:7233], Namespace: [default], Task Queue: [agent-repair-task-queue]
@@ -141,7 +149,9 @@ Auto-approval is enabled. Proceeding with repair workflow.
 Auto-approving the repair workflow
 Current repair status: PENDING-REPAIR
 Current repair status: PENDING-REPORT
-Workflow completed with result: Repair workflow completed with status: REPORT-COMPLETED. Report Summary: The repair process was completed successfully for 4 issues, with no problems skipped. Each relevant order received the necessary corrections and updates.
+Workflow completed with result: Repair workflow completed with status: REPORT-COMPLETED. 
+Report Summary: The repair process was completed successfully for 4 issues, with no problems skipped. 
+Each relevant order received the necessary corrections and updates.
 ```
 
 There are other scripts included for your convenience:
@@ -173,11 +183,17 @@ WSL config:
 ```
 Here's how it looks with Claude:
 
-<img src="./assets/claude-repair-success.png" width="50%" alt="Claude Success">
+<img src="./assets/claude-repair-success.png" width="80%" alt="Claude Success">
+
+### Detection, Analysis, and Reporting: Simple Agents
+These agents are implemented as simple activities - they get input, have a prompt, and execute towards their goals, but they are short-lived and make sense as activities. If they fail, they can just try again. 
+#TODO say more words here probs
 
 ### Proactive Repair Agent
 This proactive agent executes detection and analysis periodically, and notifies if it finds problems. 
 It can call back into an agentic system like [this one](https://github.com/temporal-community/temporal-ai-agent) with the `callback` input set. <br />
+#TODO show what this looks like in the agentic sample system
+
 (It could email or alert in some other way too.) <br/>
 It will usually wait for approval before proceeding with the repair. It _recommends_ repair actions but doesn't take action unless it's confidence is higher than 95%. 
 
@@ -199,10 +215,16 @@ Current repair status: WAITING-FOR-NEXT-CYCLE, waiting for a minute before check
 You can trigger this from MCP using the `initiate_proactive_agent()` tool.
 
 ## 3. Results
-#todo talk about the ingredients (detect, analyze, Action, Report)
+Now the Hogwarts students and staff will have what they need this year! 
+We demonstrated several different kinds of agents with Temporal:
+- a long-lived, interactive agent as MCP tools
+- simple single-task agents, doing AI-powered automation
+- a proactive agent - also connected via MCP
+
+
 #todo talk about the styles: single activity, multiple activities, proactive/scheduled, proactive/looping, supervised
 
 #TODO: explain automation agents vs conversational (assistive) agents, and how they can be used together
 
 ### What's Cool About This:
-#todo talk about long running interactive agents, proactive agents, self-repairing workflows
+#todo talk about long running interactive agents, proactive agents,() self-repairing workflows)
