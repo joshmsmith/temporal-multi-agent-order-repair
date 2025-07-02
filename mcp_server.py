@@ -103,8 +103,6 @@ async def status(workflow_id: str, run_id: str) -> Dict[str, str]:
         "description": desc.status.name
     }
 
-
-#todo add mcp more tools like getting proposed tools, getting repair tool results, and the final report
 @mcp.tool(description="Get the proposed tools for the repair workflow.",
           #tags={"repair", "order management", "workflow", "proposed tools"},
           )

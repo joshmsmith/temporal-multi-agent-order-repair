@@ -4,13 +4,55 @@ These agents are automation agents who accomplish tasks intelligently and indepe
 They are _not_ conversational. These agents are exposed as tools (via MCP) so they can be used 
 by an MCP client.
 
-#TODO diagram of agents and tools and ODS
-#TODO DAPRR explanation
+## Harry Potter and the School Supplies Problem
+Harry, Ron, Hermione and friends want to get supplies for the next year at Hogwarts. 
+The orders are in the system ([orders data](./data/orders.json)), and there is an inventory database as well ([inventory](./data/inventory.json)).
+Unfortunately, there are a few problems, such as Hagrid trying to buy a Norwegian Ridgeback Dragon Egg that is restricted and requires approval:
+```json
+{
+      "order_id": "ORD-004-RHG",
+      "customer_name": "Rubeus Hagrid",
+      "status": "pending-approval",
+      "items": [
+        {
+          "item_id": "DRG-EGG-007",
+          "item_name": "Dragon Egg - Norwegian Ridgeback",
+          "description": "RESTRICTED ITEM: Requires Ministry of Magic approval for purchase - breeding license needed",
+          "category": "Magical Creatures - Restricted",
+          "quantity": 1,
+          "unit_price": 37.98,
+          "total_price": 37.98
+        }
+      ]
+    },
+```
+There are a few other problems, such as Hermione ordering more SPEW badges than are available. 
+(Feel free to add more orders with problems, such as Dumbledore ordering something that there isn't enough inventory for, or Voldemort ordering something illegal. You might need to add tools to take action if there aren't repair actions to fix what you add. )
 
+## How it works: DAPRR Magic Repair
+This system demonstrates an agentic pattern I call DAPRR: detect, analyze, plan, repair, report:
 
+<img src="./assets/DAPRR.png" width="80%" alt="DAPRR Diagram">
+
+Automation agents often do this DAPRR sequence, or a subset, such as analysis, planning, and repair. <br />
+Notes:
+- Detection can often be a less expensive version of analysis, such as getting _if any_ orders need analysis
+- Planning is a key step - it allows a human to review and approve the plans
+- This is a long-running human-in-the-loop agentic process, so it needs durability, interaction, and state (memory). In this sample, we do that with a Temporal Workflow.
+
+This pattern is applicable to **many kinds** of systems. Anything that a human has to detect, think about, and act on could be simplified with this kind of AI-powered automation. Examples include:
+- site reliability / production monitoring
+- failed transactions
+- IT infrastructure scaling (up or down)
+- customer service & support
+- work to be done
+
+### Repair System Overview: 
+<img src="./assets/order-repair-overview.png" width="90%" alt="Order Repair Overview">
+The user interacts with the repair process, can query it for status and what it's doing, and approve repairs.
+The tools are executed durably with Temporal - in this case an agentic workflow that takes some steps on its own, using AI.
 
 ## Prerequisites:
-
 - Python3+
 - `uv` (curl -LsSf https://astral.sh/uv/install.sh | sh)
 - Temporal [Local Setup Guide](https://learn.temporal.io/getting_started/?_gl=1*1bxho70*_gcl_au*MjE1OTM5MzU5LjE3NDUyNjc4Nzk.*_ga*MjY3ODg1NzM5LjE2ODc0NTcxOTA.*_ga_R90Q9SJD3D*czE3NDc0MDg0NTIkbzk0NyRnMCR0MTc0NzQwODQ1MiRqMCRsMCRoMA..)
@@ -18,35 +60,36 @@ by an MCP client.
 
 
 ## 1. Setup
-
 ```bash
 uv venv
 source .venv/bin/activate
 poetry install
 ```
 
-## 2. Launch Temporal locally
-
+### Launch Temporal locally 
+(if using local Temporal, see [.env.example](./.env.example) for other options)
 ```bash
 temporal server start-dev
 ```
 
-## 3. Start the worker
-
+### Start the worker
 ```bash
 poetry run python run_worker.py
 ```
 
-## 4. Start Various Workflows
-### Repair Agent
-Repair Agent executes the detect/analyze/repair cycle once:
-1. Detects problems
-2. Analyzes problems
-3. Proposes repairs
-4. Waits for approval
-5. Executes repairs
-6. Reports on its actions
-#TODO could make this a diagram
+## 2. Running
+### Repair Agent Tool
+The Repair Agent executes the detect/analyze/plan/repair/report cycle once. 
+This agent is:
+- a tool that takes action for an agent
+- an agent that makes decisions (such as planning & proposing tools)
+- an orchestrator of other agents (such as the Analysis and Reporting Agents - who are much simpler)
+([related definitions](https://temporal.io/blog/building-an-agentic-system-thats-actually-production-ready#agentic-systems-definitions))
+
+**Note:** It does update the inventory and orders data as it repairs. (You can reset the data between runs by discarding the changes it makes and refreshing from the git repo.)
+
+#### Terminal
+An easy way to understand what it's doing is to kick it off via a terminal:
 ```bash
 poetry run python run_repair_agent.py  --auto-approve
 ```
@@ -59,6 +102,7 @@ Or you can approve it using the Temporal UI or included script:
 poetry run python ./approve_repair_for_agent.py --workflow-id "repair-Josh-49c94bb5-d7a6-4a25-a8a3-39f0bf800f91"
 ```
 
+Here's what it looks like:
 ```none
 poetry run python run_repair_agent.py --auto-approve
 Client connection: [localhost:7233], Namespace: [default], Task Queue: [agent-repair-task-queue]
@@ -100,7 +144,15 @@ Current repair status: PENDING-REPORT
 Workflow completed with result: Repair workflow completed with status: REPORT-COMPLETED. Report Summary: The repair process was completed successfully for 4 issues, with no problems skipped. Each relevant order received the necessary corrections and updates.
 ```
 
-You can also hook this up to an MCP Client using the included `mcp_server.py`. 
+There are other scripts included for your convenience:
+- [query_repair_agent](./query_repair_agent.py)
+- [approve_repair_for_agent](./approve_repair_for_agent.py)
+
+You can follow along with its progress in the Temporal UI Workflow History.
+
+#### MCP
+You can also hook this up to an MCP Client using the included `mcp_server.py`. <br />
+(You may want to reset the data files between runs to get the same results again.)
 WSL config:
 ```JSON
     "order_repair_agent": {
@@ -125,18 +177,11 @@ Here's how it looks with Claude:
 
 ### Proactive Repair Agent
 This proactive agent executes detection and analysis periodically, and notifies if it finds problems. 
-It will wait for approval before proceeding with the repair. It _recommends_ repair actions but doesn't do it's own decision making
-1. Detects problems
-2. Analyzes problems
-3. Proposes repairs
-4. Notify that there are problems
-5. Waits for approval 
- - Unless the confidence score is > .95, in which case it confidently self-approves
-6. Executes repairs
-7. Reports on its actions
-8. Wait some time, start again from the top
-#todo good to diagram
+It can call back into an agentic system like [this one](https://github.com/temporal-community/temporal-ai-agent) with the `callback` input set. <br />
+(It could email or alert in some other way too.) <br/>
+It will usually wait for approval before proceeding with the repair. It _recommends_ repair actions but doesn't take action unless it's confidence is higher than 95%. 
 
+Here's how it looks to run from the command line:
 ```none
 poetry run python start_repair_agent_proactive.py 
 Client connection: [localhost:7233], Namespace: [default], Task Queue: [agent-repair-task-queue]
@@ -151,8 +196,9 @@ Repair planning is complete.
  Summary: The repair process was successful with a total of 3 problems repaired and none skipped. Key repairs involved sending payment update requests to Harry James Potter and Ronald Bilius Weasley. Additionally, an approval request was sent for Rubeus Hagrid's order.
 Current repair status: WAITING-FOR-NEXT-CYCLE, waiting for a minute before checking again.
 ```
+You can trigger this from MCP using the `initiate_proactive_agent()` tool.
 
-## 5. Results
+## 3. Results
 #todo talk about the ingredients (detect, analyze, Action, Report)
 #todo talk about the styles: single activity, multiple activities, proactive/scheduled, proactive/looping, supervised
 

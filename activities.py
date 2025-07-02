@@ -270,12 +270,13 @@ async def analyze_some_stuff(input: dict) -> dict:
 
 async def plan_to_repair_some_stuff(input: dict) -> dict:
     """
-    This is a an automated helper agent that plans repairs for problems.
+    This is a function used by the Repair Orders workflows to plan repair for problems.
     It uses a Large Language Model (LLM) to analyze orders and plan repairs.
     It heartbeats the activity to indicate progress
     It returns a dictionary response with the planned repairs:
         - issues
-        - planned tools to repair them
+        - an overall_confidence_score about how sure it is it should do the repairs
+        - planned tools to repair issues
         - how sure it is via a confidence_score.
     """    
     # Load the orders data 
@@ -424,7 +425,7 @@ async def notify_interested_parties(input: dict) -> dict:
 
 async def repair_some_stuff(input: dict) -> dict:
     """
-    This is a an automated helper that repairs problems.
+    This is a a tool used by the Order Repair Workflow Agent that repairs problems.
     Note: may want to non-retry some of the data structure errors here because if the data structure isn't right, there's no point in retrying.
     """
     activity.logger.debug(f"Running repair with input: {input}")
