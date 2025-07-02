@@ -1,7 +1,6 @@
 from asyncio import sleep
 from datetime import datetime
 import os
-import random
 import json
 from pathlib import Path
 from typing import Callable
@@ -310,6 +309,7 @@ async def plan_to_repair_some_stuff(input: dict) -> dict:
     "a confidence_score of how confident you are that the tool will solve the problem. " \
     "Feel free to include additional notes in 'additional_notes' if necessary. " \
     "If there are no proposed tools for repairs, note that in additional_notes. " \
+    "Include an overall_confidence_score for the proposed tools indicating confidence that the repairs should be triggered, " \
     "The list of orders to analyze is as follows: " \
     + json.dumps(orders_to_detect_json, indent=2)
     context_instructions = context_instructions  + "\nThe list of issues to repair is as follows: " \
@@ -396,9 +396,8 @@ async def notify_interested_parties(input: dict) -> dict:
     """
     #todo get callback info from inputs
     notification_info = input.get("notification_info")
-    print(f"Notification info: {notification_info}")
     if not notification_info or not isinstance(notification_info, dict):
-        activity.logger.warning("Improper notification info provided, skipping notification.")
+        activity.logger.warning("No notification info provided, skipping notification.")
         return {
             "notification_status": "Improper notification info provided.",
         }

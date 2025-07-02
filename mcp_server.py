@@ -8,7 +8,7 @@ import uuid
 import os
 
 from shared.config import TEMPORAL_TASK_QUEUE, get_temporal_client
-from workflows import RepairAgentWorkflow
+from workflows import RepairAgentWorkflow, RepairAgentWorkflowProactive
 from dotenv import load_dotenv
 
 
@@ -18,7 +18,9 @@ mcp = FastMCP(name="Order Repair Agent",
               author="Josh Smith",
               instructions="""
 This agent is designed to analyze and repair issues in order management systems.
-It can detect problems, plan repairs, and execute them based on user approval."""
+It can detect problems, plan repairs, and execute them based on user approval. 
+Users can initiate a repair workflow, approve or reject proposed repairs, and query the status of the workflow.
+Optionally they can start a proactive repair workflow that will run in the background and detect problems on its own."""
                 )
 
 @mcp.tool(description="Trigger a repair workflow to start that will detect order problems and propose repairs. " \
@@ -169,6 +171,38 @@ async def get_repair_report(workflow_id: str, run_id: str) -> Dict[str, str]:
     return {
         "report": report_result
     }
+
+async def initiate_proactive_agent() -> Dict[str, str]:
+    """Start the repair agent workflow to detect and repair problems on its own."""
+    
+    load_dotenv(override=True)
+    user = os.environ.get("USER_NAME", "Harry.Potter") 
+    client = await get_temporal_client()
+
+    start_msg = {
+        "prompt": "Analyze and repair the orders in the order system.",
+        "metadata": {
+            "user": user,  
+            "system": "temporal-repair-agent",
+        }, # could add some proactive notification/callback here
+    }
+    
+    handle = await client.start_workflow(
+        RepairAgentWorkflowProactive.run,
+        start_msg,
+        id=f"always-be-repairin-for-{user}-{uuid.uuid4()}",
+        task_queue=TEMPORAL_TASK_QUEUE,
+    )
+    
+    desc : str= await handle.describe()
+    status : str = await handle.query("GetRepairStatus")    
+    
+    return {"workflow_id": handle.id, 
+            "run_id": handle.result_run_id, 
+            "status": status, 
+            "description": desc.status.name,
+            "proactive": True}
+
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")
