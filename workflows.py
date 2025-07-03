@@ -13,7 +13,6 @@ with workflow.unsafe.imports_passed_through():
 ITERATIONS_BEFORE_CONTINUE_AS_NEW = 10  # Number of iterations before exiting the workflow
 
 #TODO: add a workflow that runs a single tool as an update operation to repair one order's problems
-#TODO: add a scheduled workflow that runs daily and detects problems in the system, analyzes them, optionally repairs 
 
 
 '''RepairAgentWorkflow: 

@@ -78,6 +78,12 @@ poetry install
 temporal server start-dev
 ```
 
+### Set up your .env settings
+Copy `.env.example` to `.env` and set your properties, particularly:
+```bash
+LLM_MODEL=openai/gpt-4o
+LLM_KEY=sk-proj-...
+```
 ### Start the worker
 ```bash
 poetry run python run_worker.py

@@ -3,12 +3,9 @@ import uuid
 import os
 
 from shared.config import TEMPORAL_TASK_QUEUE, get_temporal_client
-from temporalio.client import WorkflowExecutionAsyncIterator
-from workflows import RepairAgentWorkflow
 from dotenv import load_dotenv
 
 import argparse
-from temporalio.client import WorkflowExecutionAsyncIterator
 parser = argparse.ArgumentParser(description="Query a repair agent workflow.")
 parser.add_argument(
     "--workflow-id",
@@ -25,9 +22,9 @@ async def main(workflow_id: str) -> None:
     load_dotenv(override=True)
     user = os.environ.get("USER_NAME", "Harry.Potter") 
     print(f"Using user: {user}")
+
     # Create client connected to server at the given address
     client = await get_temporal_client()
-    #workflows : WorkflowExecutionAsyncIterator = client.list_workflows(    'WorkflowType="RepairAgentWorkflow"')
     handle = client.get_workflow_handle(workflow_id=workflow_id)
     print(f"Workflow handle: {handle}")
     try:
