@@ -423,14 +423,14 @@ async def notify_interested_parties(input: dict) -> dict:
         #fake send email here
         activity.logger.info(f"Sending email to {notification_info.get('email', 'unknown')} with " \
                              f"subject: {notification_info.get('subject', 'No Subject')}" \
-                             f" and body: See report at [{PLANNING_REPORT_NAME}](/path/to/project/{PLANNING_REPORT_NAME}) for details.")
+                             f" and body: See report {TOOL_EXECUTION_REPORT_NAME} at /path/to/project/{TOOL_EXECUTION_REPORT_NAME} for details.")
     elif notification_info.get("type", "") == "signal-workflow":
         signal_wf_id = notification_info.get("workflow_id", "agent-workflow")
         signal_name = notification_info.get("name", "add_external_message")
         client = await get_temporal_client()
         handle = client.get_workflow_handle(workflow_id=signal_wf_id)
         await handle.signal(signal_name, "REPAIR PLANNING STATUS: ready to review proposed tools for repair. " \
-                            f"See report at [{PLANNING_REPORT_NAME}](/path/to/project/{PLANNING_REPORT_NAME}) for details. " )
+                            f"See report {TOOL_EXECUTION_REPORT_NAME} at /path/to/project/{TOOL_EXECUTION_REPORT_NAME} for details. " )
         
     else:
         activity.logger.warning("Unsupported notification type, skipping notification.")
