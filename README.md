@@ -5,10 +5,10 @@ They are _not_ conversational. These agents are exposed as tools (via MCP) so th
 by an MCP client.
 
 We will demonstrate several kinds of agents:
-- a long-lived, interactive agent as MCP tools - TODO link to down below
-- simple single-task agents
-- a proactive agent 
-- a scheduled agent 
+- [a long-lived, interactive agent as MCP tools](#repair-agent-tool)
+- [simple single-task agents](#detection-analysis-and-reporting-simple-agents)
+- [a proactive agent](#proactive-repair-agent) 
+- [a scheduled agent](#scheduled-agent)
 
 ## Harry Potter and the School Supplies Problem
 Harry, Ron, Hermione and friends want to get supplies for the next year at Hogwarts. 
@@ -196,13 +196,17 @@ Here's how it looks with Claude:
 ### Detection, Analysis, and Reporting: Simple Agents
 These agents are implemented as simple activities - they get input, have a prompt, and execute towards their goals, but they are short-lived and make sense as activities. If they fail, they can just try again. 
 
-#TODO say more words here probs
+Here's an overview of the Analysis Agent as an example:
+
+<img src="./assets/analysis_agent_diagram.png" width="80%" alt="Analysis Agent Diagram">
+
+These agents validate their output, and if it is invalid, as happens with probabalistic AI sometimes, they fail and retry themselves.
 
 ### Proactive Repair Agent
 This proactive agent executes detection and analysis periodically, and notifies if it finds problems. 
 It can call back into an agentic system like [this one](https://github.com/temporal-community/temporal-ai-agent) with the `callback` input set. <br />
 
-#TODO show what this looks like in the agentic sample system
+<img src="./assets/callback-to-agent.png" width="80%" alt="Callback to Agent">
 
 (It could email or alert in some other way too.) <br/>
 It will usually wait for approval before proceeding with the repair. It _recommends_ repair actions but doesn't take action unless it's confidence is higher than 95%. 
@@ -229,16 +233,23 @@ The Repair Agent is easy to schedule using Temporal Schedules. [schedule_repair_
 By default it is scheduled once a day, does analysis, and waits 12 hours for approval. If no approval is given, it self-terminates.
 
 ## 3. Results
-Now the Hogwarts students and staff will have what they need this year! 
+Now the Hogwarts students and staff will have what they need this year! Inventory has been ordered, risky orders have been approved, and purchasers have been reminded to pay their invoices! 
+
 We demonstrated several different kinds of agents with Temporal:
 - a long-lived, interactive agent as MCP tools
 - simple single-task agents, doing AI-powered automation
 - a proactive agent - also connected via MCP
+- an agent running on a schedule, to detect problems periodically, such as once a day
 
-
-#todo talk about the styles: single activity, multiple activities, proactive/scheduled, proactive/looping, supervised
-
-#TODO: explain automation agents vs conversational (assistive) agents, and how they can be used together
+We also demonstrated how it's easy withe Temporal to build this kind of long-running agentic system.
+We can orchestrate multiple agents, delegate tasks to agents in Activities, how to easily recover from failure, and how to gather human input such as approval. 
 
 ### What's Cool About This:
-#todo talk about long running interactive agents, proactive agents,() self-repairing workflows)
+Building agents isn't that hard with Temporal. Temporal features like Workflows, Activities, and Signals, plus durable state management and retries, dramatically simplify building out agentic systems. Plus, because Temporal Cloud can scale to extremely high volumes, our agentic code is also scalable to high volumes easily, by scaling up our workers (and paying for LLM API Keys with high rate limits, ha).
+
+The DAPRR pattern is also useful as a pattern for agentic automation. Detecting, Analyzing, Planning, Repairing, and Reporting can be used in many use cases to enable automated agentic activity.
+
+If you already know how to build with Temporal, you have a head start on building some agentic systems. If not, play with the code, take some (free) courses, and enjoy learning.
+
+
+
