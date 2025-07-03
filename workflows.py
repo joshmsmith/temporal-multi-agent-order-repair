@@ -131,7 +131,7 @@ class RepairAgentWorkflow:
         workflow.logger.info(f"Waiting for approval for repair")
         await workflow.wait_condition(
             lambda: self.approved is not False or self.rejected is not False,
-            timeout=timedelta(days=5),
+            timeout=timedelta(hours=12),
         )
 
         if self.rejected:
@@ -161,6 +161,9 @@ class RepairAgentWorkflow:
         if hasattr(self, 'iteration_count'):
                 details += f"- **Iteration:** {self.iteration_count}\n"
         details += f"- **Last Status Set:** {workflow.now().isoformat()}\n"
+        if self.planned:
+            details += f"- **Repair Planned:** {self.planned}\n"
+            details += f"- See [Planned Repairs](file://pathto/directory/report.md)\n"
         workflow.set_current_details(details)
         workflow.logger.debug(f"Workflow status set to: {status}")
 
@@ -331,7 +334,7 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
                 workflow.logger.info(f"Waiting for approval for repair")
                 await workflow.wait_condition(
                     lambda: self.approved is not False or self.rejected is not False,
-                    timeout=timedelta(hours=24),  # Wait for up to 24 hours for approval
+                    timeout=timedelta(hours=20),  # Wait for up to 24 hours for approval
                 )
 
                 if self.rejected:

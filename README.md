@@ -7,7 +7,8 @@ by an MCP client.
 We will demonstrate several kinds of agents:
 - a long-lived, interactive agent as MCP tools - TODO link to down below
 - simple single-task agents
-- a proactive agent
+- a proactive agent 
+- a scheduled agent 
 
 ## Harry Potter and the School Supplies Problem
 Harry, Ron, Hermione and friends want to get supplies for the next year at Hogwarts. 
@@ -42,16 +43,17 @@ This system demonstrates an agentic pattern I call DAPRR: detect, analyze, plan,
 Automation agents often do this DAPRR sequence, or a subset, such as analysis, planning, and repair. <br />
 Notes:
 - Detection can often be a less expensive version of analysis, such as getting _if any_ orders need analysis
-  - it could be skipped entirely if the system can be notified when there is a problem
-- Planning is a key step - it allows a human to review and approve the plans
-- This is a long-running human-in-the-loop agentic process, so it needs durability, interaction, and state (memory). In this sample, we do that with a Temporal Workflow.
+  - it could be skipped entirely if the system can be notified when there is a problem such as via an event
+- *Planning* is a key step - it allows a human to review and approve the plans
+- This is a long-running human-in-the-loop agentic process, so it needs durability, interaction, and state (memory). In this sample, we provide that with a Temporal Workflow.
 
 This pattern is applicable to **many kinds** of systems. Anything that a human has to detect, think about, and act on could be simplified with this kind of AI-powered automation. Examples include:
 - site reliability / production monitoring
 - failed transactions
 - IT infrastructure scaling (up or down)
 - customer service & support
-- work to be done
+- any work in a work queue
+- nearly anything that isn't as it should be that a human can fix with computers
 
 ### Repair System Overview: 
 <img src="./assets/order-repair-overview.png" width="90%" alt="Order Repair Overview">
@@ -93,14 +95,14 @@ poetry run python run_worker.py
 ### Repair Agent Tool
 The Repair Agent executes the detect/analyze/plan/repair/report cycle once. 
 This agent is:
-- a tool that takes action for an agent
-- an agent that makes decisions (such as planning & proposing tools)
-- an orchestrator of other agents (such as the Analysis and Reporting Agents - who are much simpler)
+- a *tool* that takes action for an agent
+- an *agent* that makes decisions (such as planning & proposing tools)
+- an *orchestrator* of other agents (such as the Analysis and Reporting Agents - who are much simpler)
 - a Temporal Workflow - dynamically taking action to accomplish the repair 
 
 ([related definitions](https://temporal.io/blog/building-an-agentic-system-thats-actually-production-ready#agentic-systems-definitions))
 
-**Note:** It does update the inventory and orders data as it repairs. You can look at the data files after it runs to see changes. You can reset the data between runs by discarding the changes it makes and refreshing from the git repo.
+**Note:** It does update the `inventory.json` and `orders.json` data as it repairs. You can look at the data files after it runs to see changes. You can reset the data between runs by discarding the changes it makes and refreshing from the git repo.
 
 #### Terminal
 An easy way to understand what it's doing is to kick it off via a terminal:
@@ -193,11 +195,13 @@ Here's how it looks with Claude:
 
 ### Detection, Analysis, and Reporting: Simple Agents
 These agents are implemented as simple activities - they get input, have a prompt, and execute towards their goals, but they are short-lived and make sense as activities. If they fail, they can just try again. 
+
 #TODO say more words here probs
 
 ### Proactive Repair Agent
 This proactive agent executes detection and analysis periodically, and notifies if it finds problems. 
 It can call back into an agentic system like [this one](https://github.com/temporal-community/temporal-ai-agent) with the `callback` input set. <br />
+
 #TODO show what this looks like in the agentic sample system
 
 (It could email or alert in some other way too.) <br/>
@@ -219,6 +223,10 @@ Repair planning is complete.
 Current repair status: WAITING-FOR-NEXT-CYCLE, waiting for a minute before checking again.
 ```
 You can trigger this from MCP using the `initiate_proactive_agent()` tool.
+
+### Scheduled Agent
+The Repair Agent is easy to schedule using Temporal Schedules. [schedule_repair_agent](./schedule_repair_agent.py) is provided as a simple way to demonstrate this. It takes operations, such as `create`, `upsert`, `describe`, and `delete` for your convenience.
+By default it is scheduled once a day, does analysis, and waits 12 hours for approval. If no approval is given, it self-terminates.
 
 ## 3. Results
 Now the Hogwarts students and staff will have what they need this year! 

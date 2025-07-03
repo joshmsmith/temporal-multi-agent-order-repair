@@ -15,6 +15,8 @@ load_dotenv(override=True)
 
 # Define the date for analysis to be a useful date (June 28, 2025), relative to the static order dates
 DATE_FOR_ANALYSIS = datetime(2025, 6, 28)
+PLANNING_REPORT_NAME = "planning_report.md"
+TOOL_EXECUTION_REPORT_NAME = "tool_execution_report.md"
 
 """
 This defines the activities for the repair agent workflow.
@@ -27,18 +29,18 @@ async def single_tool_repair(self, input: dict) -> str:
     #TODO this needs to detect, move the results from analysis to orders_to_repair, plan repairs
     #TODO detect
     activity.logger.info(f"Running single_tool_repair with input: {input}")
-    analysis = await self.analyze(input)
+    analysis = await analyze_some_stuff(input)
     activity.logger.info(f"Analysis result: {analysis}")
     activity.heartbeat("Analysis completed, proceeding to repair...")
     #TODO move the analysis results to the input for repair
     #TODO plan repairs
-    repairs = await self.repair(input)
+    repairs = await repair_some_stuff(input)
     activity.heartbeat("Repair completed, proceeding to report...")
     activity.logger.info(f"Repair result: {repairs}")
     
-    report = await report(input)
+    report_output = await report_some_stuff(input)
 
-    return report
+    return report_output
 '''These activities demonstrate the detect, analyze, repair, and report steps of the repair agent workflow.
 They can be used to detect, analyze, repair, and report on a system.
 They simply call the corresponding functions to perform the actions.'''
@@ -361,18 +363,29 @@ async def plan_to_repair_some_stuff(input: dict) -> dict:
 
         #Note: could put this into a data structure
         proposed_tools_for_all_orders = parsed_response.get("proposed_tools", {})
+        additional_repair_notes = parsed_response.get("additional_notes", "")
+        overall_confidence_score = parsed_response.get("overall_confidence_score", 0.0)
+        report_contents: str
         if not proposed_tools_for_all_orders:
             activity.logger.info("No proposed tools found for repair.")
+            report_contents = "# No proposed tools found for repair."
         else:
             activity.logger.debug(f"Proposed tools for all orders: {proposed_tools_for_all_orders}")
             activity.logger.info(f"Number of orders with proposed tools: {len(proposed_tools_for_all_orders)}")
+            
+            report_contents = "# Proposed tools for repair:\n"
+            report_contents += f"- Overall confidence score for proposed tools: {overall_confidence_score}\n"
+            report_contents += f"- Additional notes: {additional_repair_notes}\n"
+            report_contents += f"- Number of orders with proposed tools: {len(proposed_tools_for_all_orders)}\n"
+            report_contents += "## Proposed Orders and Tools:\n"
             for order_id, order in proposed_tools_for_all_orders.items():
                 if not isinstance(order, list):
                     activity.logger.error(f"Expected a dictionary for order {order_id}, got {type(list)}")
                     raise ApplicationError(f"Expected a dictionary for order {order_id}, got {type(list)}")
+                report_contents += f"### Order ID: {order_id}\n"
                 for tool in order:
-                    # confidence_score = tool.get("confidence_score", 0.0)
-                    # additional_notes = tool.get("additional_notes", "No additional notes provided.")
+                    confidence_score = tool.get("confidence_score", 0.0)
+                    additional_notes = tool.get("additional_notes", "No additional notes provided.")
                     tool_name = tool.get("tool_name", "Unknown Tool Name")
                     tool_arguments = tool.get("tool_arguments", {})
                     if not tool_name or tool_name == "Unknown Tool Name" or not tool_arguments:
@@ -382,7 +395,12 @@ async def plan_to_repair_some_stuff(input: dict) -> dict:
                         activity.logger.error(f"Expected a dictionary for tool arguments for tool {tool_name} for order {order_id}, got {type(tool_arguments)} for {tool}")
                         raise ApplicationError(f"Expected a dictionary for tool arguments for tool {tool_name} for order {order_id}, got {type(tool_arguments)}")
                     activity.logger.debug(f"Tool arguments for tool {tool_name} for order {order_id}: {tool_arguments}")
-                    
+                    report_contents += f"### Tool: {tool_name}"
+                    report_contents += f"\n- Confidence Score: {confidence_score}\n- Additional Notes: {additional_notes}\n"
+                    report_contents += f"- Tool Arguments: {json.dumps(tool_arguments, indent=2)}\n"
+        
+        with open(PLANNING_REPORT_NAME, "w") as report_file:
+            report_file.write(report_contents)
         activity.logger.info(f"...Planning results valid.")
         return parsed_response
     
@@ -403,13 +421,16 @@ async def notify_interested_parties(input: dict) -> dict:
         }
     if notification_info.get("type", "") == "email":
         #fake send email here
-        activity.logger.info(f"Sending email to {notification_info.get('email', 'unknown')} with subject: {notification_info.get('subject', 'No Subject')}")
+        activity.logger.info(f"Sending email to {notification_info.get('email', 'unknown')} with " \
+                             f"subject: {notification_info.get('subject', 'No Subject')}" \
+                             f" and body: See report at [{PLANNING_REPORT_NAME}](/path/to/project/{PLANNING_REPORT_NAME}) for details.")
     elif notification_info.get("type", "") == "signal-workflow":
         signal_wf_id = notification_info.get("workflow_id", "agent-workflow")
         signal_name = notification_info.get("name", "add_external_message")
         client = await get_temporal_client()
         handle = client.get_workflow_handle(workflow_id=signal_wf_id)
-        await handle.signal(signal_name, "REPAIR PLANNING STATUS: ready to review proposed tools for repair. " )
+        await handle.signal(signal_name, "REPAIR PLANNING STATUS: ready to review proposed tools for repair. " \
+                            f"See report at [{PLANNING_REPORT_NAME}](/path/to/project/{PLANNING_REPORT_NAME}) for details. " )
         
     else:
         activity.logger.warning("Unsupported notification type, skipping notification.")
@@ -614,6 +635,23 @@ async def report_some_stuff(input: dict) -> dict:
         activity.logger.debug(f"Additional Notes: {additional_notes}")
 
         activity.logger.info(f"...Reporting results valid.")
+        repair_report_contents = "# Repair Report:\n"
+        repair_report_contents += f"- Repairs sufficient confidence score: {repairs_sufficient_confidence_score}\n"
+        repair_report_contents += f"- Additional notes: {additional_notes}\n"
+        repair_report_contents += f"- Number of orders in report: {len(order_summary)}\n"
+        repair_report_contents += "## Order Summary:\n"
+        for order_id, order in order_summary.items():
+            if not isinstance(order, dict):
+                activity.logger.error(f"Expected a dictionary for order {order_id}, got {type(order)}")
+                raise ApplicationError(f"Expected a dictionary for order {order_id}, got {type(order)}")
+            repair_report_contents += f"### Order ID: {order_id}\n"
+            status = order.get("status", "Unknown Status")
+            repair_report_contents += f"- Status: {status}\n"
+            issues = order.get("issues", "No issues reported.")
+            repair_report_contents += f"  - {issues}\n"
+        with open(TOOL_EXECUTION_REPORT_NAME, "w") as report_file:
+            report_file.write(repair_report_contents)
+        activity.logger.info(f"...Planning results valid.")
         return report_results
     
     except Exception as e:
