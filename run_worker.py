@@ -45,7 +45,7 @@ async def run_worker() -> None:
                     activities.analyze, 
                     activities.plan_repair,
                     activities.notify,
-                    activities.repair, 
+                    activities.execute_repairs, 
                     activities.report],
     )
     print(f"Starting worker...")

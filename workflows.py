@@ -8,7 +8,7 @@ from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError, ApplicationError
 
 with workflow.unsafe.imports_passed_through():
-    from activities import analyze, detect, plan_repair, notify, repair, report
+    from activities import analyze, detect, plan_repair, notify, execute_repairs, report
 
 ITERATIONS_BEFORE_CONTINUE_AS_NEW = 10  # Number of iterations before exiting the workflow
 
@@ -235,7 +235,7 @@ class RepairAgentWorkflow:
         """
         self.set_workflow_status("PENDING-REPAIR")
         self.context["repair_result"] = await workflow.execute_activity(
-            repair,
+            execute_repairs,
             self.context,
             start_to_close_timeout=timedelta(minutes=5),
             retry_policy=RetryPolicy(

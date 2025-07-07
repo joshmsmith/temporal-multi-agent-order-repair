@@ -61,7 +61,7 @@ async def notify(input: dict) -> dict:
     return await notify_interested_parties(input)
 
 @activity.defn
-async def repair(input: dict) -> dict:
+async def execute_repairs(input: dict) -> dict:
     return await repair_some_stuff(input)
 
 @activity.defn
@@ -446,7 +446,7 @@ async def notify_interested_parties(input: dict) -> dict:
 
 async def repair_some_stuff(input: dict) -> dict:
     """
-    This is a a tool used by the Order Repair Workflow Agent that repairs problems.
+    This is used by the Order Repair Workflow Agent to execute tools and repair problems.
     Note: may want to non-retry some of the data structure errors here because if the data structure isn't right, there's no point in retrying.
     """
     activity.logger.debug(f"Running repair with input: {input}")

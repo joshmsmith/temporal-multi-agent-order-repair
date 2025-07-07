@@ -1,5 +1,5 @@
 # temporal-multi-agent
-Examples showing different styes of multi-agent architecture with Temporal.
+Examples showing different styles of multi-agent architecture with Temporal.
 These agents are automation agents who accomplish tasks intelligently and independently. 
 They are _not_ conversational. These agents are exposed as tools (via MCP) so they can be used 
 by an MCP client.
@@ -35,16 +35,17 @@ Unfortunately, there are a few problems, such as Hagrid trying to buy a Norwegia
 There are a few other problems, such as Hermione ordering more SPEW badges than are available. 
 (Feel free to add more orders with problems, such as Dumbledore ordering something that there isn't enough inventory for, or Voldemort ordering something illegal. You might need to add tools to take action if there aren't repair actions to fix what you add. )
 
-## How it works: DAPRR Magic Repair
-This system demonstrates an agentic pattern I call DAPRR: detect, analyze, plan, repair, report:
+## How it works: DAPER Magic Repair
+This system demonstrates an agentic pattern I call DAPER: detect, analyze, plan, execute, report:
 
-<img src="./assets/DAPRR.png" width="80%" alt="DAPRR Diagram">
+<img src="./assets/DAPER.png" width="80%" alt="DAPER Diagram">
 
-Automation agents often do this DAPRR sequence, or a subset, such as analysis, planning, and repair. <br />
+Automation agents often do this DAPER sequence, or a subset, such as analysis, planning, and execution. <br />
 Notes:
 - Detection can often be a less expensive version of analysis, such as getting _if any_ orders need analysis
   - it could be skipped entirely if the system can be notified when there is a problem such as via an event
 - *Planning* is a key step - it allows a human to review and approve the plans
+- *Reporting* might be included in the Execution step, if Execution can be set up to just Report on what it did - and an analysis of the current state isn't needed
 - This is a long-running human-in-the-loop agentic process, so it needs durability, interaction, and state (memory). In this sample, we provide that with a Temporal Workflow.
 
 This pattern is applicable to **many kinds** of systems. Anything that a human has to detect, think about, and act on could be simplified with this kind of AI-powered automation. Examples include:
@@ -247,7 +248,7 @@ We can orchestrate multiple agents, delegate tasks to agents in Activities, how 
 ### What's Cool About This:
 Building agents isn't that hard with Temporal. Temporal features like Workflows, Activities, and Signals, plus durable state management and retries, dramatically simplify building out agentic systems. Plus, because Temporal Cloud can scale to extremely high volumes, our agentic code is also scalable to high volumes easily, by scaling up our workers (and paying for LLM API Keys with high rate limits, ha).
 
-The DAPRR pattern is also useful as a pattern for agentic automation. Detecting, Analyzing, Planning, Repairing, and Reporting can be used in many use cases to enable automated agentic activity.
+The DAPER pattern is also useful as a pattern for agentic automation. Detecting, Analyzing, Planning, Repairing, and Reporting can be used in many use cases to enable automated agentic activity.
 
 If you already know how to build with Temporal, you have a head start on building some agentic systems. If not, play with the code, take some (free) courses, and enjoy learning.
 
