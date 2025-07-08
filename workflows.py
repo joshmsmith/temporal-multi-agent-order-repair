@@ -256,7 +256,7 @@ class RepairAgentWorkflow:
                 initial_interval=timedelta(seconds=1),
                 maximum_interval=timedelta(seconds=30),
             ),
-            heartbeat_timeout=timedelta(seconds=10),
+            heartbeat_timeout=timedelta(seconds=15),
         )
         self.set_workflow_status("REPORT-COMPLETED")
         workflow.logger.debug(f"Report result: {self.context["report_result"]}")   

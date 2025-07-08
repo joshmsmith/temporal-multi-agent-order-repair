@@ -582,6 +582,7 @@ async def report_some_stuff(input: dict) -> dict:
         }
 
         response = completion(**completion_kwargs)
+        activity.heartbeat("Got response, validating...")
 
         response_content = response.choices[0].message.content
         activity.logger.debug(f"Raw LLM response: {repr(response_content)}")

@@ -242,7 +242,7 @@ We demonstrated several different kinds of agents with Temporal:
 - a proactive agent - also connected via MCP
 - an agent running on a schedule, to detect problems periodically, such as once a day
 
-We also demonstrated how it's easy withe Temporal to build this kind of long-running agentic system.
+We also demonstrated how it's easy with Temporal to build this kind of long-running agentic system.
 We can orchestrate multiple agents, delegate tasks to agents in Activities, how to easily recover from failure, and how to gather human input such as approval. 
 
 ### What's Cool About This:
