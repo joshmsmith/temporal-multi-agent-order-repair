@@ -246,7 +246,7 @@ We also demonstrated how it's easy with Temporal to build this kind of long-runn
 We can orchestrate multiple agents, delegate tasks to agents in Activities, how to easily recover from failure, and how to gather human input such as approval. 
 
 ### What's Cool About This:
-Building agents isn't that hard with Temporal. Temporal features like Workflows, Activities, and Signals, plus durable state management and retries, dramatically simplify building out agentic systems. Plus, because Temporal Cloud can scale to extremely high volumes, our agentic code is also scalable to high volumes easily, by scaling up our workers (and paying for LLM API Keys with high rate limits, ha).
+Building agents is easy and straightforward with Temporal. Temporal features like Workflows, Activities, and Signals, plus durable state management and retries, dramatically simplify building out agentic systems. Plus, because Temporal Cloud can scale to extremely high volumes, our agent application is also scalable to high volumes easily, by scaling up our workers (and paying for LLM API Keys with high rate limits, ha).
 
 The DAPER pattern is also useful as a pattern for agentic automation. Detecting, Analyzing, Planning, Repairing, and Reporting can be used in many use cases to enable automated agentic activity.
 
