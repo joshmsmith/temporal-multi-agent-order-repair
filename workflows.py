@@ -305,8 +305,18 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
 
         while not self.exit_requested and not self.continue_as_new_requested and self.iteration_count < ITERATIONS_BEFORE_CONTINUE_AS_NEW:
             self.iteration_count += 1
-            # Execute the detection agent
             self.approved = False
+            self.stop_waiting = False
+            
+            if self.iteration_count > 1: # If this is not the first iteration, wait for a signal or a timeout before proceeding
+                self.set_workflow_status("WAITING-FOR-NEXT-CYCLE")
+                await workflow.wait_condition(
+                    lambda: self.exit_requested is True or 
+                            self.continue_as_new_requested is True or
+                            self.stop_waiting is True,
+                    timeout=timedelta(days=1), # Wait a day for the next detect->analysis->repair cycle. 
+                                            # Could make this a dynamic timer if you wanted to always run at a certain time
+                )
             
             # Execute the detection agent
             detection_confidence_score = await self.perform_detection(self.context)
@@ -314,9 +324,9 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
             detection_confidence_score = self.context["detection_result"].get("confidence_score", 0.0)
             if detection_confidence_score < 0.5:
                 analysis_notes = self.context["detection_result"].get("additional_notes", "")
-                workflow.logger.info(f"Low confidence score from detection: {detection_confidence_score} ({analysis_notes}). No repair needed.")
+                workflow.logger.info(f"Low confidence score from detection: {detection_confidence_score} ({analysis_notes}). No repair needed at this time.")
                 self.set_workflow_status("NO-REPAIR-NEEDED")
-                return f"No repair needed based on detection result: confidence score for repair: {detection_confidence_score} ({analysis_notes})"
+                continue  # Skip to the next iteration if no repair is needed
             
             #execute the analysis agent      
             await self.analyze_problems(self.context)
@@ -338,9 +348,9 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
                 )
 
                 if self.rejected:
-                    workflow.logger.info(f"Repair REJECTED by user {self.context.get('rejected_by', 'unknown')}")
+                    workflow.logger.info(f"Repair REJECTED by user {self.context.get('rejected_by', 'unknown')}. No repair needed at this time - will check again later.")
                     self.set_workflow_status("REJECTED")
-                    return f"Repair REJECTED by user {self.context.get('rejected_by', 'unknown')}"
+                    continue # Skip to the next iteration if repair is rejected
                 
                 self.set_workflow_status("APPROVED")
                 workflow.logger.info(f"Repair approved by user {self.context.get('approved_by', 'unknown')}")
@@ -357,16 +367,6 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
             # Create the report with the report agent
             report_summary = await self.generate_report()
             workflow.logger.info(f"Repair completed with status: {self.status}. Report Summary: {report_summary}") 
-            
-            self.set_workflow_status("WAITING-FOR-NEXT-CYCLE")
-            await workflow.wait_condition(
-                lambda: self.exit_requested is True or 
-                        self.continue_as_new_requested is True or
-                        self.stop_waiting is True,
-                timeout=timedelta(days=1), # Wait a day for the next detect->analysis->repair cycle. 
-                                           # Could make this a dynamic timer if you wanted to always run at a certain time
-            )
-            self.stop_waiting = False
             
         if self.exit_requested:
             workflow.logger.info("Exit requested. Ending workflow.")
