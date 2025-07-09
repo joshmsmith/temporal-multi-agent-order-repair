@@ -106,6 +106,27 @@ async def status(workflow_id: str, run_id: str) -> Dict[str, str]:
 @mcp.tool(description="Get the proposed tools for the repair workflow.",
           #tags={"repair", "order management", "workflow", "proposed tools"},
           )
+async def get_analysis_result(workflow_id: str, run_id: str) -> Dict[str, str]:
+    """Return the analysis result for the repair workflow. This is the result of the analysis step.
+    This won't have results before the analysis step is complete.
+    The analysis result includes the problems for each order and any additional notes.   
+    """
+    load_dotenv(override=True)
+    user = os.environ.get("USER_NAME", "Harry.Potter") 
+    client = await get_temporal_client()
+    handle = client.get_workflow_handle(workflow_id=workflow_id, run_id=run_id)
+    
+    try:
+        analysis_result: dict = await handle.query("GetRepairAnalysisResult")
+    except Exception as e:
+        print(f"Error querying repair planning result: {e}")
+        proposed_tools_for_all_orders = "No tools proposed yet."
+    
+    return analysis_result
+
+@mcp.tool(description="Get the proposed tools for the repair workflow.",
+          #tags={"repair", "order management", "workflow", "proposed tools"},
+          )
 async def get_proposed_tools(workflow_id: str, run_id: str) -> Dict[str, str]:
     """Return the proposed tools for the repair workflow. This is the result of the planning step. 
     This should not be confused with the tools that are actually executed.

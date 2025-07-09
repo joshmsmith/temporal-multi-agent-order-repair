@@ -231,6 +231,16 @@ async def analyze_some_stuff(input: dict) -> dict:
     activity.logger.debug(f"Sanitized response: {repr(response_content)}")
     parsed_response : dict = parse_json_response(response_content)
     activity.logger.debug(f"Validating Analysis Result: {parsed_response}")
+
+    # validate the structure and content of the response - 
+    # throw an exception to force a retry of the agent if it's invalid
+    validate_analysis_results(parsed_response) 
+
+    return parsed_response
+
+def validate_analysis_results(parsed_response):
+    """    Validate the analysis results from the LLM response.
+    This checks that the response contains the expected structure and types."""
     if not parsed_response:
         exception_message = "LLM response content is empty."
         activity.logger.error(exception_message)
@@ -267,8 +277,6 @@ async def analyze_some_stuff(input: dict) -> dict:
                         activity.logger.debug(f"Issue Confidence Score: {order_issue_confidence_score}")
                         order_id = order_issue.get("order_id", "Unknown Order ID")
                         activity.logger.debug(f"Order ID: {order_id}")
-
-    return parsed_response
 
 async def plan_to_repair_some_stuff(input: dict) -> dict:
     """
@@ -380,8 +388,9 @@ async def plan_to_repair_some_stuff(input: dict) -> dict:
             report_contents += "## Proposed Orders and Tools:\n"
             for order_id, order in proposed_tools_for_all_orders.items():
                 if not isinstance(order, list):
-                    activity.logger.error(f"Expected a dictionary for order {order_id}, got {type(list)}")
-                    raise ApplicationError(f"Expected a dictionary for order {order_id}, got {type(list)}")
+                    activity.logger.error(f"Expected a dictionary for order {order}, got {type(order)}")
+                    activity.logger.error(f"Order {order_id} proposed tools in order: {order}")
+                    raise ApplicationError(f"Expected a dictionary for order {order}, got {type(order)}")
                 report_contents += f"### Order ID: {order_id}\n"
                 for tool in order:
                     confidence_score = tool.get("confidence_score", 0.0)
@@ -553,9 +562,9 @@ async def report_some_stuff(input: dict) -> dict:
     "You will also receive a list of repair notes that detail the repairs made to each order. " \
     "Ensure your response is valid JSON and does not contain any markdown formatting. " \
     "The response should be a JSON object with a key 'repair_report' that contains " \
-    "a summary of the repairs made as 'report_summary', " \
-    "a summary of order health as 'order_summary', and " \
-    "a repairs_sufficient_confidence_score of how confident you are that repairs are sufficient and orders are in a good status. " \
+    "a summary of the repairs made as 'repairs_summary', " \
+    "a 'repairs_sufficient_confidence_score' of how confident you are that repairs are sufficient and orders are in a good status, and" \
+    "a list of orders each with 'status', any outstanding 'issues', and 'order_id'. " \
     "Feel free to include additional notes in 'additional_notes' if necessary. " \
     "The list of orders to analyze is as follows: " \
     + json.dumps(orders_to_detect_json, indent=2)
@@ -606,6 +615,7 @@ async def report_some_stuff(input: dict) -> dict:
 
         #Note: could put this into a data structure
         report_results = parsed_response.get("repair_report", {})
+        print(f"Report results: {report_results}"  )
         if not report_results:
             activity.logger.info("No repair report found.")
             return {"report": "No repair report found."}
@@ -618,16 +628,16 @@ async def report_some_stuff(input: dict) -> dict:
             activity.logger.debug(f"Repair report results type: {type(report_results)}")
         report_summary = report_results.get("report_summary", "No summary provided.")
         activity.logger.debug(f"Report Summary: {report_summary}")
-        order_summary = report_results.get("order_summary", {})
-        if not order_summary:
-            activity.logger.info("No order summary found in repair report.")
+        orders = report_results.get("orders", {})
+        if not orders:
+            activity.logger.info("No orders found in repair report.")
         else:
-            activity.logger.debug(f"Order summary: {order_summary}")
-            if not isinstance(order_summary, dict):
-                activity.logger.error(f"Expected a dictionary for order summary, got {type(order_summary)}")
-                raise ApplicationError(f"Expected a dictionary for order summary, got {type(order_summary)}")
+            activity.logger.debug(f"Order summary: {orders}")
+            if not isinstance(orders, list):
+                activity.logger.error(f"Expected a list for order summary, got {type(orders)}")
+                raise ApplicationError(f"Expected a list for order summary, got {type(orders)}")
             else:
-                activity.logger.debug(f"Order summary type: {type(order_summary)}")
+                activity.logger.debug(f"Order summary type: {type(orders)}")
         repairs_sufficient_confidence_score = report_results.get("repairs_sufficient_confidence_score", 0.0)
         activity.logger.debug(f"Repairs sufficient confidence score: {repairs_sufficient_confidence_score}")
         additional_notes = report_results.get("additional_notes", "")
@@ -635,24 +645,28 @@ async def report_some_stuff(input: dict) -> dict:
             additional_notes = f"({additional_notes})"
         activity.logger.debug(f"Additional Notes: {additional_notes}")
 
-        activity.logger.info(f"...Reporting results valid.")
+        
         repair_report_contents = "# Repair Report:\n"
         repair_report_contents += f"- Repairs sufficient confidence score: {repairs_sufficient_confidence_score}\n"
         repair_report_contents += f"- Additional notes: {additional_notes}\n"
-        repair_report_contents += f"- Number of orders in report: {len(order_summary)}\n"
+        repair_report_contents += f"- Number of orders in report: {len(orders)}\n"
         repair_report_contents += "## Order Summary:\n"
-        for order_id, order in order_summary.items():
+        for order in orders:
             if not isinstance(order, dict):
-                activity.logger.error(f"Expected a dictionary for order {order_id}, got {type(order)}")
-                raise ApplicationError(f"Expected a dictionary for order {order_id}, got {type(order)}")
+                activity.logger.error(f"Expected a dictionary for order {order}, got {type(order)}")
+                activity.logger.error(f"Orders: {orders}")
+                raise ApplicationError(f"Expected a dictionary for order {order}, got {type(order)}")
+            order_id = order.get("order_id", "Unknown Order ID")
             repair_report_contents += f"### Order ID: {order_id}\n"
             status = order.get("status", "Unknown Status")
             repair_report_contents += f"- Status: {status}\n"
             issues = order.get("issues", "No issues reported.")
-            repair_report_contents += f"  - {issues}\n"
+            repair_report_contents += f"  - Outstanding issues: {issues}\n"
+
         with open(TOOL_EXECUTION_REPORT_NAME, "w") as report_file:
             report_file.write(repair_report_contents)
-        activity.logger.info(f"...Planning results valid.")
+
+        activity.logger.info(f"...Reporting results valid.")
         return report_results
     
     except Exception as e:
