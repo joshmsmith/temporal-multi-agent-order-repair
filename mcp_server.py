@@ -28,7 +28,10 @@ Optionally they can start a proactive repair workflow that will run in the backg
           #tags={"repair", "order management", "workflow", "start workflow"},
           )
 async def initiate_repair_processing() -> Dict[str, str]:
-    """Start the repair Workflow to detect and repair problems."""
+    """Start the repair Workflow to detect and repair problems.
+    This is not a proactive agent, but a workflow that runs on demand.
+    It will analyze the order system, plan repairs, and execute them as needed.
+    Users can approve or reject proposed repairs."""
     
     load_dotenv(override=True)
     user = os.environ.get("USER_NAME", "Harry.Potter") 
@@ -192,7 +195,15 @@ async def get_repair_report(workflow_id: str, run_id: str) -> Dict[str, str]:
     }
 
 async def initiate_proactive_agent() -> Dict[str, str]:
-    """Start the repair agent workflow to detect and repair problems on its own."""
+    """start/initiate the proactive repair agent to proactively detect and repair order problems 
+    that's always running in the background.
+    This will run in the background and detect problems on its own, without user intervention.
+    It will analyze the order system, plan repairs, and execute them as needed.
+    This is useful for systems that need continuous monitoring and repair capabilities
+    It will run indefinitely, detecting and repairing issues as they arise.
+    If it's confident enough, it will proactively repair issues without user approval.
+    If it's not confident, it will notify the user and wait for approval before proceeding with repairs.
+    ."""
     
     load_dotenv(override=True)
     user = os.environ.get("USER_NAME", "Harry.Potter") 
