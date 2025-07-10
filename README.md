@@ -190,9 +190,9 @@ WSL config:
       ]
     }
 ```
-Here's how it looks with Claude:
+Here's how it looks with Goose:
 
-<img src="./assets/claude-repair-success.png" width="80%" alt="Claude Success">
+<img src="./assets/goose-orders-repaired.png" width="80%" alt="Goose Success">
 
 ### Detection, Analysis, and Reporting: Simple Agents
 These agents are implemented as simple activities - they get input, have a prompt, and execute towards their goals, but they are short-lived and make sense as activities. If they fail, they can just try again. 
