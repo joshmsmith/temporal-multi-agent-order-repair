@@ -190,7 +190,8 @@ async def analyze_some_stuff(input: dict) -> dict:
     "or other anomalies. " \
     "Ensure your response is valid JSON and does not contain any markdown formatting. " \
     "The response should be a JSON object with a key 'issues' that contains a list of detected issues, " \
-    "each with an order_id, item with key 'issue' that describes the issue, and " \
+    "each with an order_id, item with key 'issue' that describes the issue, " \
+    "the customer_name the order is for, and  " \
     "a confidence_score of how sure you are there is a problem. " \
     "Feel free to include additional notes in 'additional_notes' if necessary. " \
     "If there are no issues, note that in additional_notes. " \

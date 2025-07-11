@@ -1,4 +1,6 @@
+import json
 import os
+from pathlib import Path
 import uuid
 from typing import Dict
 
@@ -89,6 +91,20 @@ async def reject_proposed_repairs(workflow_id: str, run_id: str) -> str:
     status : str = await handle.query("GetRepairStatus")    
     return status
 
+@mcp.tool(description="Detect if there are problems with the orders.",
+          #tags={"repair", "order management", "workflow", "status"},
+          )
+async def get_orders_problems_confidence(workflow_id: str, run_id: str) -> Dict[str, float]:
+    """Return score about how confident the system is there are problems with the order .
+    used to answer problems like "Are there problems with the orders?"."""
+    load_dotenv(override=True)
+    client = await get_temporal_client()
+    handle = client.get_workflow_handle(workflow_id=workflow_id, run_id=run_id)
+    
+    problem_confidence_score = await handle.query("GetProblemsConfidenceScore")
+    return {
+        "confidence that there are order problems percent": problem_confidence_score,
+    }
 
 @mcp.tool(description="Get the current status of the repair workflow.",
           #tags={"repair", "order management", "workflow", "status"},
@@ -193,6 +209,18 @@ async def get_repair_report(workflow_id: str, run_id: str) -> Dict[str, str]:
     return {
         "report": report_result
     }
+
+async def get_orders_data() -> Dict:
+    """Load the order data from a JSON file.
+    This loads all the orders to get order information """
+    orders_file_path = (
+        Path(__file__).resolve().parent / "data" / "orders.json"
+    )
+
+    with open(orders_file_path, "r") as orders_file:
+        order_data: dict = json.load(orders_file)
+
+    return order_data
 
 async def initiate_proactive_agent() -> Dict[str, str]:
     """start/initiate the proactive repair agent to proactively detect and repair order problems 

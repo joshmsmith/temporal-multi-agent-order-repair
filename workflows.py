@@ -39,14 +39,14 @@ class RepairAgentWorkflow:
         workflow.logger.debug(f"Starting repair workflow with inputs: {inputs}")
 
         # Execute the detection agent
-        detection_confidence_score = await self.perform_detection(self.context)
+        self.problems_found_confidence_score = await self.perform_detection(self.context)
 
         # if confidence is low, no need to repair
-        if detection_confidence_score < 0.5:
+        if self.problems_found_confidence_score < 0.5:
             analysis_notes = self.context["detection_result"].get("additional_notes", "")
-            workflow.logger.info(f"Low confidence score from detection: {detection_confidence_score} ({analysis_notes}). No repair needed.")
+            workflow.logger.info(f"Low confidence score from detection: {self.problems_found_confidence_score} ({analysis_notes}). No repair needed.")
             self.set_workflow_status("NO-REPAIR-NEEDED")
-            return f"No repair needed based on detection result: confidence score for repair: {detection_confidence_score} ({analysis_notes})"
+            return f"No repair needed based on detection result: confidence score for repair: {self.problems_found_confidence_score} ({analysis_notes})"
         
         #execute the analysis agent
         await self.analyze_problems(self.context)
@@ -159,6 +159,7 @@ class RepairAgentWorkflow:
                 )
             workflow.logger.debug(f"Planning result: {self.context["planning_result"]}")
             self.planned = True
+            self.planning_confidence_score = self.context.get("planning_result", {}).get("overall_confidence_score", 0.0)
 
     async def execute_repair(self):
         """Execute the repair based on the planned repairs.
@@ -212,6 +213,18 @@ class RepairAgentWorkflow:
         if self.planned is None:
             raise ApplicationError("Repair approval status is not set yet.")
         return self.planned
+    
+    @workflow.query
+    async def GetProblemsConfidenceScore(self) -> float:
+        if self.problems_found_confidence_score is None:
+            return 0.0
+        return self.problems_found_confidence_score
+    
+    @workflow.query
+    async def GetPlannedRepairConfidenceScore(self) -> float:
+        if self.planning_confidence_score is None:
+            return 0.0
+        return self.planning_confidence_score
     
     @workflow.query
     async def IsRepairApproved(self) -> bool:
@@ -309,12 +322,12 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
                 workflow.logger.info("Continuing as new or exit requested. Skipping analysis for this iteration.")
             else:
                 # Execute the detection agent
-                detection_confidence_score = await self.perform_detection(self.context)
+                self.problems_found_confidence_score = await self.perform_detection(self.context)
 
-                detection_confidence_score = self.context["detection_result"].get("confidence_score", 0.0)
-                if detection_confidence_score < 0.5:
+                self.problems_found_confidence_score = self.context["detection_result"].get("confidence_score", 0.0)
+                if self.problems_found_confidence_score < 0.5:
                     analysis_notes = self.context["detection_result"].get("additional_notes", "")
-                    workflow.logger.info(f"Low confidence score from detection: {detection_confidence_score} ({analysis_notes}). No repair needed at this time.")
+                    workflow.logger.info(f"Low confidence score from detection: {self.problems_found_confidence_score} ({analysis_notes}). No repair needed at this time.")
                     self.set_workflow_status("NO-REPAIR-NEEDED")
                     continue  # Skip to the next iteration if no repair is needed
                 
@@ -325,7 +338,7 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
                 await self.create_plan(self.context)
 
                 # for low planning confidence scores, we will notify the user and wait for approval
-                if self.context.get("planning_result").get("overall_confidence_score", 0.0) <= 0.95:
+                if self.planning_confidence_score <= 0.95:
                     # Notify the user about the planned repairs
                     await self.execute_notification()
 
