@@ -10,13 +10,15 @@ from dotenv import load_dotenv
 from litellm import completion
 from temporalio.exceptions import ApplicationError
 from shared.config import TEMPORAL_TASK_QUEUE, get_temporal_client
+from markdown_pdf import MarkdownPdf, Section
+
 
 load_dotenv(override=True)
 
 # Define the date for analysis to be a useful date (June 28, 2025), relative to the static order dates
 DATE_FOR_ANALYSIS = datetime(2025, 6, 28)
-PLANNING_REPORT_NAME = "planning_report.md"
-TOOL_EXECUTION_REPORT_NAME = "tool_execution_report.md"
+PLANNING_REPORT_NAME = "./reports/planning_report"
+TOOL_EXECUTION_REPORT_NAME = "./reports/tool_execution_report"
 
 """
 This defines the activities for the repair agent workflow.
@@ -289,6 +291,7 @@ async def plan_to_repair_some_stuff(input: dict) -> dict:
         - an overall_confidence_score about how sure it is it should do the repairs
         - planned tools to repair issues
         - how sure it is via a confidence_score.
+    It also generates a report of the planned repair activities of the system saves it as a PDF.
     """    
     # Load the orders data 
     orders_of_interest: dict = input.get("orders_of_interest", [])
@@ -389,9 +392,9 @@ async def plan_to_repair_some_stuff(input: dict) -> dict:
             report_contents += "## Proposed Orders and Tools:\n"
             for order_id, order in proposed_tools_for_all_orders.items():
                 if not isinstance(order, list):
-                    activity.logger.error(f"Expected a dictionary for order {order}, got {type(order)}")
+                    activity.logger.error(f"Expected a list for order {order}, got {type(order)}")
                     activity.logger.error(f"Order {order_id} proposed tools in order: {order}")
-                    raise ApplicationError(f"Expected a dictionary for order {order}, got {type(order)}")
+                    raise ApplicationError(f"Expected a list for order {order}, got {type(order)}")
                 report_contents += f"### Order ID: {order_id}\n"
                 for tool in order:
                     confidence_score = tool.get("confidence_score", 0.0)
@@ -409,9 +412,20 @@ async def plan_to_repair_some_stuff(input: dict) -> dict:
                     report_contents += f"\n- Confidence Score: {confidence_score}\n- Additional Notes: {additional_notes}\n"
                     report_contents += f"- Tool Arguments: {json.dumps(tool_arguments, indent=2)}\n"
         
-        with open(PLANNING_REPORT_NAME, "w") as report_file:
-            report_file.write(report_contents)
-        activity.logger.info(f"...Planning results valid.")
+        activity.logger.info(f"...Planning results valid, generating reports.")
+
+        # if you want markdown:
+        # with open(PLANNING_REPORT_NAME+".md", "w") as report_file:
+        #     report_file.write(report_contents)      
+
+        #write the report to a pdf file with markdown-pdf
+        planning_report_pdf = MarkdownPdf(toc_level=2, optimize=True)
+        planning_report_pdf.add_section(Section(report_contents))
+        planning_report_pdf.meta["title"] = "Magical Repair Planning Report"
+        planning_report_pdf.meta["author"] = "Joshua Smith"
+        planning_report_pdf.save(PLANNING_REPORT_NAME + ".pdf")
+
+        
         return parsed_response
     
     except Exception as e:
@@ -535,6 +549,7 @@ async def report_some_stuff(input: dict) -> dict:
     It returns a dictionary response with the report of the repairs:
         - orders repaired and their issues and current status
         - any additional notes
+    It also generates a report of the repair activities of the system saves it as a PDF.
     """    
 
     # Load the orders data 
@@ -664,8 +679,16 @@ async def report_some_stuff(input: dict) -> dict:
             issues = order.get("issues", "No issues reported.")
             repair_report_contents += f"  - Outstanding issues: {issues}\n"
 
-        with open(TOOL_EXECUTION_REPORT_NAME, "w") as report_file:
-            report_file.write(repair_report_contents)
+        # if you want markdown:
+        # with open(TOOL_EXECUTION_REPORT_NAME + ".md", "w") as report_file:
+        #     report_file.write(repair_report_contents)
+
+        #write the report to a pdf file with markdown-pdf#write the report to a pdf file with markdown-pdf
+        repair_report_pdf = MarkdownPdf(toc_level=2, optimize=True)
+        repair_report_pdf.add_section(Section(repair_report_contents))
+        repair_report_pdf.meta["title"] = "Magical Repairs: Order Repair Final Report"
+        repair_report_pdf.meta["author"] = "Joshua Smith"
+        repair_report_pdf.save(TOOL_EXECUTION_REPORT_NAME + ".pdf")
 
         activity.logger.info(f"...Reporting results valid.")
         return report_results
