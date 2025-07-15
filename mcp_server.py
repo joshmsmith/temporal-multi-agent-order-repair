@@ -210,6 +210,9 @@ async def get_repair_report(workflow_id: str, run_id: str) -> Dict[str, str]:
         "report": report_result
     }
 
+@mcp.tool(description="Get the order data from teh database.",
+          #tags={"repair", "order management", "workflow", "report"},
+          )
 async def get_orders_data() -> Dict:
     """Load the order data from a JSON file.
     This loads all the orders to get order information """
@@ -222,6 +225,9 @@ async def get_orders_data() -> Dict:
 
     return order_data
 
+@mcp.tool(description="Initiate proactive repair workflow agent.",
+          #tags={"repair", "order management", "workflow", "report"},
+          )
 async def initiate_proactive_agent() -> Dict[str, str]:
     """start/initiate the proactive repair agent to proactively detect and repair order problems 
     that's always running in the background.
