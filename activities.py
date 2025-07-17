@@ -26,23 +26,6 @@ Activities are static methods that implement automated helper agents as tools.
 They can be used to detect, analyze, repair, and report on the system.
 """
 
-@activity.defn
-async def single_tool_repair(self, input: dict) -> str:
-    #TODO this needs to detect, move the results from analysis to orders_to_repair, plan repairs
-    #TODO detect
-    activity.logger.info(f"Running single_tool_repair with input: {input}")
-    analysis = await analyze_some_stuff(input)
-    activity.logger.info(f"Analysis result: {analysis}")
-    activity.heartbeat("Analysis completed, proceeding to repair...")
-    #TODO move the analysis results to the input for repair
-    #TODO plan repairs
-    repairs = await repair_some_stuff(input)
-    activity.heartbeat("Repair completed, proceeding to report...")
-    activity.logger.info(f"Repair result: {repairs}")
-    
-    report_output = await report_some_stuff(input)
-
-    return report_output
 '''These activities demonstrate the detect, analyze, repair, and report steps of the repair agent workflow.
 They can be used to detect, analyze, repair, and report on a system.
 They simply call the corresponding functions to perform the actions.'''
@@ -979,3 +962,51 @@ def request_payment_update_tool(inputs: dict) -> dict:
         json.dump(orders_data, orders_file, indent=2)
     
     return {"status": "success", "message": f"Payment update request sent to {customer_name} for order {order_id}."}
+
+
+@activity.defn
+async def process_order(self, input: dict) -> str:
+    """
+    This is an activity that processes an order.
+    It analyzes the order, detects problems, plans repairs, notifies interested parties, executes repairs, and reports on the repairs.
+    """
+    order_id = input.get("order_id", "unknown_order_id")
+    if not order_id:
+        activity.logger.error("No order ID provided in input.")
+        raise ApplicationError("No order ID provided in input.")
+    
+    activity.logger.info(f"Running process_order: order_id={order_id}")
+    activity.heartbeat("Processing order...")
+    
+    
+    order_data = load_orders_data([order_id])
+    if not order_data:
+        activity.logger.error(f"No order data found for order ID {order_id}.")
+        raise ApplicationError(f"No order data found for order ID {order_id}.")
+    
+    # todo try to process the order
+    # todo load inventory
+    # todo make sure we have enough inventory
+    # todo make sure order status is ok
+    # todo other checks
+
+    return 
+
+@activity.defn
+async def single_tool_repair(self, input: dict) -> str:
+    #TODO this needs to detect, move the results from analysis to orders_to_repair, plan repairs
+    #TODO detect
+    activity.logger.info(f"Running single_tool_repair with input: {input}")
+    analysis = await analyze_some_stuff(input)
+    activity.logger.info(f"Analysis result: {analysis}")
+    activity.heartbeat("Analysis completed, proceeding to repair...")
+    #TODO move the analysis results to the input for repair
+    #TODO plan repairs
+    repairs = await repair_some_stuff(input)
+    activity.heartbeat("Repair completed, proceeding to report...")
+    activity.logger.info(f"Repair result: {repairs}")
+    
+    report_output = await report_some_stuff(input)
+
+    return report_output
+

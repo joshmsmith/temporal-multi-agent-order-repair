@@ -8,12 +8,9 @@ from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError, ApplicationError
 
 with workflow.unsafe.imports_passed_through():
-    from activities import analyze, detect, plan_repair, notify, execute_repairs, report
+    from activities import analyze, detect, plan_repair, notify, execute_repairs, report, single_tool_repair, process_order
 
 ITERATIONS_BEFORE_CONTINUE_AS_NEW = 10  # Number of iterations before exiting the workflow
-
-#TODO: add a workflow that runs a single tool as an update operation to repair one order's problems
-
 
 '''RepairAgentWorkflow: 
 This is an agent implemented as a Temporal Workflow that orchestrates repairs.
@@ -415,3 +412,77 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
                 heartbeat_timeout=timedelta(seconds=30),
             )
 
+'''OrderWorkflow:
+This is a Temporal Workflow that orchestrates the order management process.
+It's just a simple demo workflow to demonstrate order repairs
+'''
+@workflow.defn
+class OrderWorkflow:
+    def __init__(self) -> None:
+        self.status: str = "INITIALIZING"
+        self.context: dict = {}
+
+    @workflow.run
+    async def run(self, inputs: dict) -> str:
+        self.context["metadata"] = inputs.get("metadata", {})
+        self.context["order_details"] = inputs.get("order_details", {})
+        self.order_id = inputs.get("order_id", "unknown")
+        workflow.logger.debug(f"Order ID: {self.order_id}")
+        workflow.logger.debug(f"Order details: {self.context['order_details']}")
+        self.set_workflow_status("INITIALIZING")
+        workflow.logger.debug(f"Starting order workflow with inputs: {inputs}")
+
+        # Execute the order management activities
+        self.set_workflow_status("PROCESSING-ORDER")
+        # try to process the order
+        #todo need to define the process_order activity
+        try:
+            order_result = await workflow.execute_activity(
+                process_order,
+                self.context,
+                start_to_close_timeout=timedelta(minutes=5),
+                retry_policy=RetryPolicy(
+                    initial_interval=timedelta(seconds=1),
+                    maximum_interval=timedelta(seconds=30),  
+                ),
+                heartbeat_timeout=timedelta(seconds=20),
+            )
+        except ActivityError as e:
+            workflow.logger.warn(f"Order processing failed: {e}")
+            self.set_workflow_status("ORDER-TROUBLESHOOTING")
+            #todo try to repair the order
+            try:
+                repair_result = await workflow.execute_activity(
+                    single_tool_repair,
+                    self.context,
+                    start_to_close_timeout=timedelta(minutes=5),
+                    retry_policy=RetryPolicy(
+                        initial_interval=timedelta(seconds=1),
+                        maximum_interval=timedelta(seconds=30),  
+                    ),
+                    heartbeat_timeout=timedelta(seconds=20),
+                )
+                workflow.logger.debug(f"Repair result: {repair_result}")
+                if repair_result.get("success", False):
+                    workflow.logger.info("Order repair successful. Retrying order processing.")
+                    self.set_workflow_status("RETRYING-ORDER-PROCESSING")
+
+                    # Retry processing the order after repair
+                    order_result = await workflow.execute_activity(
+                        process_order,
+                        self.context,
+                        start_to_close_timeout=timedelta(minutes=5),
+                        retry_policy=RetryPolicy(
+                            initial_interval=timedelta(seconds=1),
+                            maximum_interval=timedelta(seconds=30),  
+                        ),
+                        heartbeat_timeout=timedelta(seconds=20),
+                    )
+            except ActivityError as e:
+
+                #todo if repair fails or the processing fails again, mark the order as failed
+                self.set_workflow_status("ORDER-FAILED")
+                return f"Order processing failed with error: {str(e)}"
+        
+        self.set_workflow_status("ORDER-COMPLETED")
+        return f"Order workflow completed with status: {self.status}. Order Result: {order_result}"
