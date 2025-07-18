@@ -252,5 +252,13 @@ The DAPER pattern is also useful as a pattern for agentic automation. Detecting,
 
 If you already know how to build with Temporal, you have a head start on building some agentic systems. If not, play with the code, take some (free) courses, and enjoy learning.
 
+## In Production
+### Tokens & Context Window Management
+In this sample, we used [small data sets](./data/). For larger data sets, I would consider my [context window](https://www.ibm.com/think/topics/context-window) and simplify things for my agent, perhaps by reducing data retrieved to a small set of items to repair at a time (and only their relevant inventory data). Generally, smaller data sets leads to fewer tokens to understand, which leads to an easier, cheaper time for agents.
+
+### Tools
+I would also take care to make real repair tools be [idempotent](https://temporal.io/blog/idempotency-and-durable-execution) and durable probably calling them each from their own activity instead of all in one activity. Good advice about that is [here](https://temporal.io/blog/how-many-activities-should-i-use-in-my-temporal-workflow).
+
+
 
 

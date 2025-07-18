@@ -968,9 +968,11 @@ def request_payment_update_tool(inputs: dict) -> dict:
 async def process_order(self, input: dict) -> str:
     """
     This is an activity that processes an order.
-    It analyzes the order, detects problems, plans repairs, notifies interested parties, executes repairs, and reports on the repairs.
+    It's intended to demonstrate an order progressing.
+    It raises an ApplicationError if the order is invalid.
+    If the order needs repair help it won't try to process it, but will log a warning.
     """
-    order_id = input.get("order_id", "unknown_order_id")
+    order_id = input.get("order_id")
     if not order_id:
         activity.logger.error("No order ID provided in input.")
         raise ApplicationError("No order ID provided in input.")
@@ -983,17 +985,26 @@ async def process_order(self, input: dict) -> str:
     if not order_data:
         activity.logger.error(f"No order data found for order ID {order_id}.")
         raise ApplicationError(f"No order data found for order ID {order_id}.")
-    
+    order = order_data[0]
+    activity.logger.debug(f"Order data loaded: {order}")
     # todo try to process the order
-    # todo load inventory
-    # todo make sure we have enough inventory
-    # todo make sure order status is ok
-    # todo other checks
+    order_status = order.get("status", "unknown")
+    
+    #check for "normal healthy" statuses that will resolve on their own
+    if order_status not in ["pending", "in-progress", "completed", "approved-preparing-shipment"]:
+        # Order will need repair
+        activity.logger.warning(f"Order {order_id} is not in a processable state: {order_status}.")
+    
+    if order_status == "completed":
+        activity.logger.info(f"Order {order_id} is already completed, skipping processing.")
+    
+    # consider: for demo purposes should we move the order along? For demo purposes we mostly just want to demo repairs    
+    # could set the order status from "in progress" to "completed" or "approved-preparing-shipment" if we wanted to
 
-    return 
+    return order_status
 
 @activity.defn
-async def single_tool_repair(self, input: dict) -> str:
+async def single_tool_repair(self, input: dict) -> dict:
     #TODO this needs to detect, move the results from analysis to orders_to_repair, plan repairs
     #TODO detect
     activity.logger.info(f"Running single_tool_repair with input: {input}")

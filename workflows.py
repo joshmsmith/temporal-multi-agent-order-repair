@@ -431,29 +431,15 @@ class OrderWorkflow:
         workflow.logger.debug(f"Order details: {self.context['order_details']}")
         self.set_workflow_status("INITIALIZING")
         workflow.logger.debug(f"Starting order workflow with inputs: {inputs}")
+        order_result = "pending"
 
-        # Execute the order management activities
-        self.set_workflow_status("PROCESSING-ORDER")
-        # try to process the order
-        #todo need to define the process_order activity
-        try:
-            order_result = await workflow.execute_activity(
-                process_order,
-                self.context,
-                start_to_close_timeout=timedelta(minutes=5),
-                retry_policy=RetryPolicy(
-                    initial_interval=timedelta(seconds=1),
-                    maximum_interval=timedelta(seconds=30),  
-                ),
-                heartbeat_timeout=timedelta(seconds=20),
-            )
-        except ActivityError as e:
-            workflow.logger.warn(f"Order processing failed: {e}")
-            self.set_workflow_status("ORDER-TROUBLESHOOTING")
-            #todo try to repair the order
+        # Execute the order management steps
+        while self.status not in ["ORDER-COMPLETED", "ORDER-FAILED"]:
+            self.set_workflow_status("PROCESSING-ORDER")
+            # try to process the order
             try:
-                repair_result = await workflow.execute_activity(
-                    single_tool_repair,
+                process_order_status = await workflow.execute_activity(
+                    process_order,
                     self.context,
                     start_to_close_timeout=timedelta(minutes=5),
                     retry_policy=RetryPolicy(
@@ -462,14 +448,22 @@ class OrderWorkflow:
                     ),
                     heartbeat_timeout=timedelta(seconds=20),
                 )
-                workflow.logger.debug(f"Repair result: {repair_result}")
-                if repair_result.get("success", False):
-                    workflow.logger.info("Order repair successful. Retrying order processing.")
-                    self.set_workflow_status("RETRYING-ORDER-PROCESSING")
-
-                    # Retry processing the order after repair
-                    order_result = await workflow.execute_activity(
-                        process_order,
+                workflow.logger.debug(f"Process order result: {process_order_status}")
+                order_result = process_order_status
+            except ActivityError as e:
+                # Handle activity errors
+                workflow.logger.error(f"Activity error while processing order: {e}")
+                self.set_workflow_status("ORDER-FAILED")
+                return f"Order processing failed with error: {e}"
+            
+            if process_order_status not in ["pending", "in-progress", "completed", "approved-preparing-shipment"]:
+                workflow.logger.warning(f"Order processing returned stuck: {process_order_status}. Initiating troubleshooting.")
+                # If the order processing fails or returns an unexpected status, initiate troubleshooting
+                self.set_workflow_status("ORDER-TROUBLESHOOTING")
+                
+                try:
+                    repair_result = await workflow.execute_activity(
+                        single_tool_repair,
                         self.context,
                         start_to_close_timeout=timedelta(minutes=5),
                         retry_policy=RetryPolicy(
@@ -478,11 +472,35 @@ class OrderWorkflow:
                         ),
                         heartbeat_timeout=timedelta(seconds=20),
                     )
-            except ActivityError as e:
+                    workflow.logger.debug(f"Repair result: {repair_result}")
+                except ActivityError as e:
+                    # if repair fails, mark the order as failed
+                    self.set_workflow_status("ORDER-FAILED")
+                    return f"Order processing failed with error: {str(e)}"
+            elif process_order_status in ["pending", "in-progress", "approved-preparing-shipment"]:
+                #wait a bit for the order to be processed
+                workflow.logger.info(f"Order is still in progress: {process_order_status}. Waiting for processing.")
+                await workflow.wait_condition(
+                    lambda: self.status in ["ORDER-COMPLETED", "ORDER-FAILED"],
+                    timeout=timedelta(days=1), 
+                )
+            elif process_order_status == "completed":
+                # If the order is completed, we can finalize the workflow
+                workflow.logger.info(f"Order processing completed successfully: {process_order_status}.")
+                self.set_workflow_status("ORDER-COMPLETED")
+                order_result = "Order completed successfully"
+                break
 
-                #todo if repair fails or the processing fails again, mark the order as failed
-                self.set_workflow_status("ORDER-FAILED")
-                return f"Order processing failed with error: {str(e)}"
-        
-        self.set_workflow_status("ORDER-COMPLETED")
+        # Finalize the workflow
         return f"Order workflow completed with status: {self.status}. Order Result: {order_result}"
+    
+    # workflow helper functions
+    def set_workflow_status(self, status: str) -> None: 
+        """Set the current status of the workflow."""
+        self.status = status
+        # set workflow current details in Markdown format. Include status, iteration count, and timestamp.
+        details: str = f"## Workflow Status \n\n" \
+                    f"- **Phase:** {status}\n" 
+        details += f"- **Last Status Set:** {workflow.now().isoformat()}\n"
+        workflow.set_current_details(details)
+        workflow.logger.debug(f"Workflow status set to: {status}")
