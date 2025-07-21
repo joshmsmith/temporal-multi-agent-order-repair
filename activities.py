@@ -20,15 +20,11 @@ DATE_FOR_ANALYSIS = datetime(2025, 6, 28)
 PLANNING_REPORT_NAME = "./reports/planning_report"
 TOOL_EXECUTION_REPORT_NAME = "./reports/tool_execution_report"
 
-"""
-This defines the activities for the repair agent workflow.
-Activities are static methods that implement automated helper agents as tools.
-They can be used to detect, analyze, repair, and report on the system.
-"""
 
 '''These activities demonstrate the detect, analyze, repair, and report steps of the repair agent workflow.
 They can be used to detect, analyze, repair, and report on a system.
-They simply call the corresponding functions to perform the actions.'''
+They simply call the corresponding functions to perform the actions.
+Note: wanted to show just using functions wrapped by activities.'''
 @activity.defn
 async def detect(input: dict) -> dict:
     return await detect_some_stuff(input)
@@ -1005,14 +1001,17 @@ async def process_order(self, input: dict) -> str:
 
 @activity.defn
 async def single_tool_repair(self, input: dict) -> dict:
-    #TODO this needs to detect, move the results from analysis to orders_to_repair, plan repairs
-    #TODO detect
     activity.logger.info(f"Running single_tool_repair with input: {input}")
-    analysis = await analyze_some_stuff(input)
-    activity.logger.info(f"Analysis result: {analysis}")
-    activity.heartbeat("Analysis completed, proceeding to repair...")
+    
+    input["analysis_result"] = await analyze_some_stuff(input)
+    
+    activity.logger.info(f"Analysis complete. Proceeding to planning...")
+    activity.heartbeat("Analysis completed, proceeding to planning...")
+    
+    input["planning_result"] = await plan_to_repair_some_stuff(input)
+    activity.heartbeat("Planning completed, proceeding to report...")
+
     #TODO move the analysis results to the input for repair
-    #TODO plan repairs
     repairs = await repair_some_stuff(input)
     activity.heartbeat("Repair completed, proceeding to report...")
     activity.logger.info(f"Repair result: {repairs}")
