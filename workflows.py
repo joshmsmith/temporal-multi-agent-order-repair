@@ -312,8 +312,9 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
                 lambda: self.exit_requested is True or 
                         self.continue_as_new_requested is True or
                         self.stop_waiting is True,
-                timeout=timedelta(days=1), # Wait a day for the next detect->analysis->repair cycle. 
+                        timeout=timedelta(days=1), # Wait a day for the next detect->analysis->repair cycle. 
                                         # Could make this a dynamic timer if you wanted to always run at a certain time            
+                        timeout_summary="Check Again Tomorrow",
             )                           
             if self.continue_as_new_requested or self.exit_requested:
                 workflow.logger.info("Continuing as new or exit requested. Skipping analysis for this iteration.")
@@ -345,6 +346,7 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
                     await workflow.wait_condition(
                         lambda: self.approved is not False or self.rejected is not False,
                         timeout=timedelta(hours=20),  # Wait for up to 24 hours for approval
+                        timeout_summary="Tool Approval",
                     )
 
                     if self.rejected:
