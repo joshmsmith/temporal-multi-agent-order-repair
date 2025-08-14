@@ -1,5 +1,5 @@
 # temporal-multi-agent
-Examples showing different styles of multi-agent architecture with Temporal.
+Examples showing different styles of multi-agent architecture with Temporal and [goose](https://github.com/block/goose).
 These agents are automation agents who accomplish tasks intelligently and independently. 
 They are _not_ conversational. These agents are exposed as tools (via MCP) so they can be used 
 by an MCP client.
@@ -9,6 +9,10 @@ We will demonstrate several kinds of agents:
 - [simple single-task agents](#detection-analysis-and-reporting-simple-agents)
 - [a proactive agent](#proactive-repair-agent) 
 - [a scheduled agent](#scheduled-agent)
+
+It's really helpful to [watch the demo (~15 minute YouTube video)](https://www.youtube.com/watch?v=cnpmpzu1xTw) to understand how the agents and goose works together.
+
+[![Watch the demo](./assets/order-repair-youtube-screenshot.png)](https://www.youtube.com/watch?v=cnpmpzu1xTw)
 
 ## Harry Potter and the School Supplies Problem
 Harry, Ron, Hermione and friends want to get supplies for the next year at Hogwarts. 
