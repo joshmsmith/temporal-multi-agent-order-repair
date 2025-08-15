@@ -1,4 +1,4 @@
-# temporal-multi-agent
+# temporal-multi-agent order repair
 Examples showing different styles of multi-agent architecture with Temporal and [goose](https://github.com/block/goose).
 These agents are automation agents who accomplish tasks intelligently and independently. 
 They are _not_ conversational. These agents are exposed as tools (via MCP) so they can be used 
