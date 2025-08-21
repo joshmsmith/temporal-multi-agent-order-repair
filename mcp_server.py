@@ -25,6 +25,8 @@ Users can initiate a repair workflow, approve or reject proposed repairs, and qu
 Optionally they can start a proactive repair workflow that will run in the background and detect problems on its own."""
                 )
 
+#todo use annotations from https://gofastmcp.com/servers/tools#param-annotations
+#todo don't need to get the handle using runid, just use wfid
 @mcp.tool(description="Trigger a repair workflow to start that will detect order problems and propose repairs. " \
           "Upon Approval, the workflow will continue with the repairs and eventually report its results.",
           #tags={"repair", "order management", "workflow", "start workflow"},
@@ -73,8 +75,9 @@ async def approve_proposed_repairs(workflow_id: str, run_id: str) -> str:
     handle = client.get_workflow_handle(workflow_id=workflow_id, run_id=run_id)
     await handle.signal("ApproveRepair", user)
     
+    #TODO implement this as an update
     status : str = await handle.query("GetRepairStatus")    
-    return status
+    return "Repair status: " + status + ", repairs are being completed."
 
 
 @mcp.tool(description="Reject the repairs proposed by the repair agent workflow. Upon Rejection, " \

@@ -188,7 +188,7 @@ class RepairAgentWorkflow:
             ),
             heartbeat_timeout=timedelta(seconds=20),
         )
-        self.set_workflow_status("REPORT-COMPLETED")
+        self.set_workflow_status("REPAIR-COMPLETED")
         workflow.logger.debug(f"Report result: {self.context["report_result"]}")   
         report_summary = self.context["report_result"].get("repairs_summary", "No summary available")
         return report_summary
