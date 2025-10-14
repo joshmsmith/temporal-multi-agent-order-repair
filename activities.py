@@ -49,6 +49,16 @@ async def execute_repairs(input: dict) -> dict:
 async def report(input: dict) -> dict:
     return await report_some_stuff(input)
 
+@activity.defn
+async def single_agent_repair(input: dict) -> dict:
+    """ This is a single activity that runs a single agent repair process. 
+    This is a demonstration of doing a monolithic agent. It exists to demonstrate why 
+    you would *not* want to do that in a real application."""
+    
+    report_output = await execute_monolith_agent(input)
+
+    return report_output
+
 '''These are the individual functions that implement the automated helper agents.
 They can be used to detect, analyze, repair, and report on repairs for a system.'''
 
@@ -837,7 +847,7 @@ def request_approval_tool(inputs: dict) -> dict:
     print(f" - Contents: {approval_request_contents}")
 
     print(f"### MAGICAL APPROVER AUTOWAND ENGAGED ###")
-    print(f"### RESPOONSE: APPROVER AUTOWAND APPROVED ###")
+    print(f"### RESPONSE: APPROVER AUTOWAND APPROVED ###")
     with open(Path(__file__).resolve().parent / "data" / "orders.json", "r") as orders_file:
         orders_data = json.load(orders_file)
         orders = orders_data.get("orders", [])
@@ -1001,6 +1011,8 @@ async def process_order(self, input: dict) -> str:
 
 @activity.defn
 async def single_tool_repair(self, input: dict) -> dict:
+    """ This is a single activity that runs the entire repair process. 
+    It could be used to repair a single order with the right inputs."""
     activity.logger.info(f"Running single_tool_repair with input: {input}")
     
     input["analysis_result"] = await analyze_some_stuff(input)
@@ -1020,3 +1032,165 @@ async def single_tool_repair(self, input: dict) -> dict:
 
     return report_output
 
+
+#todo create monolith agent that does everything from detect to report in one method
+async def execute_monolith_agent(input: dict) -> dict:
+    """
+    This is a monolithic agent that does everything from detection to reporting in one method.
+    This is not recommended for real applications, but is provided here for demonstration purposes.
+    """
+    activity.logger.debug(f"Running monolithic agent with input: {input}")
+    
+    # Load the data 
+    orders_of_interest: dict = input.get("orders_of_interest", [])
+    orders_to_detect_json = load_orders_data(orders_of_interest)
+    
+    inventory_data_json = load_inventory_data([])
+    tool_list = get_order_tools()
+
+    activity.heartbeat("Orders Loaded, agent processing continues...")
+    
+    # Use the LLM to detect issues in the orders
+    # Get the LLM model and key from environment variables
+    llm_model = os.environ.get("LLM_MODEL", "openai/gpt-4")
+    llm_key = os.environ.get("LLM_KEY")
+    if not llm_model or not llm_key:
+        exception_message = f"LLM model or key not found in environment variables."
+        activity.logger.error(exception_message)
+        raise ApplicationError(exception_message)
+
+    # Define the messages for the LLM completion
+    context_instructions = "You are a helpful agent that proposes solutions to problems in orders. " \
+    "Your task is to analyze the provided orders, their problems, and propose tools to repair them " \
+    "using the provided tool_list. " \
+    "You will receive a list of orders in JSON format, " \
+    "each containing an 'order_id', 'order_date', 'status', 'items', and 'quantities'. " \
+    "You will also receive a list of tools that can be used to repair the issues. " \
+    "Ensure your response is valid JSON and does not contain any markdown formatting. " \
+    "The response should be a JSON object with a key 'proposed_tools' that contains " \
+    "a set of orders with key order_id. Orders should have one or more proposed tools to repair the order with key tool_name." \
+    "Each tool entry should include tool_arguments for each tool, and " \
+    "a confidence_score of how confident you are that the tool will solve the problem. " \
+    "Feel free to include additional notes in 'additional_notes' if necessary. " \
+    "If there are no proposed tools for repairs, note that in additional_notes. " \
+    "Include a tools_confidence_score for the proposed tools indicating confidence that the repairs should be triggered, " \
+    "The list of orders to analyze is as follows: " \
+    + json.dumps(orders_to_detect_json, indent=2)
+
+    context_instructions = context_instructions  + "\nThe list of tools that can be used to repair the issues is as follows: " \
+    + json.dumps(tool_list, indent=2)
+    context_instructions = context_instructions  + "\nThe inventory data is as follows: " \
+    + json.dumps(inventory_data_json, indent=2) \
+    + "\nIn addition, create a summary of the repairs and their status, and a 'repairs_sufficient_confidence_score' "
+    " of how confident you are that repairs are sufficient. " \
+    "Feel free to include additional notes in 'additional_notes' if necessary. " 
+
+    activity.logger.debug(f"Context instructions for LLM: {context_instructions}")
+    
+    messages = [
+        {
+            "role": "system",
+            "content": context_instructions
+            + ". The current date is "
+            + DATE_FOR_ANALYSIS.strftime("%B %d, %Y"),
+        },
+        # {
+        #     "role": "user",
+        #     "content": input.prompt,
+        # },
+    ]
+
+    try:
+        completion_kwargs = {
+            "model": llm_model,
+            "messages": messages,
+            "api_key": llm_key,
+        }
+
+        response = completion(**completion_kwargs)
+
+        response_content = response.choices[0].message.content
+        activity.logger.debug(f"Raw LLM response: {repr(response_content)}")
+        activity.logger.debug(f"LLM response content: {response_content}")
+        activity.logger.debug(f"LLM response type: {type(response_content)}")
+        
+        # Sanitize the response to ensure it is valid JSON
+        response_content = sanitize_json_response(response_content)
+        activity.logger.debug(f"Sanitized response: {repr(response_content)}")
+        parsed_response: dict = parse_json_response(response_content)
+
+        activity.logger.info(f"Validating Planning Result...")
+
+        proposed_tools_for_all_orders = parsed_response.get("proposed_tools", {})
+        additional_repair_notes = parsed_response.get("additional_notes", "")
+        tools_confidence_score = parsed_response.get("tools_confidence_score", 0.0)
+        repairs_sufficient_confidence_score = parsed_response.get("repairs_sufficient_confidence_score", 0.0)
+        
+        if "tools_confidence_score" not in parsed_response:
+            exception_message = "Detection response does not contain 'tools_confidence_score'."
+            activity.logger.error(exception_message)
+            raise ApplicationError(exception_message)
+
+        if "repairs_sufficient_confidence_score" not in parsed_response:
+            exception_message = "Detection response does not contain 'repairs_sufficient_confidence_score'."
+            activity.logger.error(exception_message)
+            raise ApplicationError(exception_message)
+
+        print(f"Repairs confidence score: {repairs_sufficient_confidence_score}")
+        print(f"Tools confidence score: {tools_confidence_score}")
+
+        report_contents: str
+        if not proposed_tools_for_all_orders:
+            activity.logger.info("No proposed tools found for repair.")
+            report_contents = "# No proposed tools found for repair."
+        else:
+            activity.logger.debug(f"Proposed tools for all orders: {proposed_tools_for_all_orders}")
+            activity.logger.info(f"Number of orders with proposed tools: {len(proposed_tools_for_all_orders)}")
+            
+            report_contents = "# Proposed tools for repair:\n"
+            report_contents += f"- Tools confidence score for proposed tools: {tools_confidence_score}\n"
+            report_contents += f"- Additional notes: {additional_repair_notes}\n"
+            report_contents += f"- Number of orders with proposed tools: {len(proposed_tools_for_all_orders)}\n"
+            report_contents += "## Proposed Orders and Tools:\n"
+            for order_id, order in proposed_tools_for_all_orders.items():
+                if not isinstance(order, list):
+                    activity.logger.error(f"Expected a list for order {order}, got {type(order)}")
+                    activity.logger.error(f"Order {order_id} proposed tools in order: {order}")
+                    raise ApplicationError(f"Expected a list for order {order}, got {type(order)}")
+                report_contents += f"### Order ID: {order_id}\n"
+                for tool in order:
+                    confidence_score = tool.get("confidence_score", 0.0)
+                    additional_notes = tool.get("additional_notes", "No additional notes provided.")
+                    tool_name = tool.get("tool_name", "Unknown Tool Name")
+                    tool_arguments = tool.get("tool_arguments", {})
+                    if not tool_name or tool_name == "Unknown Tool Name" or not tool_arguments:
+                        activity.logger.error(f"Tool name or arguments missing for tool {tool_name} for order {order_id}: {tool}.")
+                        raise ApplicationError(f"Tool name or arguments missing for tool {tool_name} for order {order_id}.")
+                    if not isinstance(tool_arguments, dict):
+                        activity.logger.error(f"Expected a dictionary for tool arguments for tool {tool_name} for order {order_id}, got {type(tool_arguments)} for {tool}")
+                        raise ApplicationError(f"Expected a dictionary for tool arguments for tool {tool_name} for order {order_id}, got {type(tool_arguments)}")
+                    activity.logger.debug(f"Tool arguments for tool {tool_name} for order {order_id}: {tool_arguments}")
+                    report_contents += f"### Tool: {tool_name}"
+                    report_contents += f"\n- Confidence Score: {confidence_score}\n- Additional Notes: {additional_notes}\n"
+                    report_contents += f"- Tool Arguments: {json.dumps(tool_arguments, indent=2)}\n"
+        
+        #write the report to a pdf file with markdown-pdf
+        activity.logger.debug(f"...Planning results valid, generating reports.")
+        planning_report_pdf = MarkdownPdf(toc_level=2, optimize=True)
+        planning_report_pdf.add_section(Section(report_contents))
+        planning_report_pdf.meta["title"] = "Monolith Agent Repair Planning Report"
+        planning_report_pdf.meta["author"] = "Joshua Smith"
+        planning_report_pdf.save(PLANNING_REPORT_NAME + "_MONOLITH.pdf")
+
+        print(f"Planning results saved to {PLANNING_REPORT_NAME + '_MONOLITH.pdf'}")
+        activity.heartbeat("Planning completed, proceeding to repair...")
+        activity.logger.debug(f"...Executing repairs.")
+        input["planning_result"] = parsed_response
+        repairs = await repair_some_stuff(input)
+
+        #todo match outputs to expected returns, caller expects a report
+        return parsed_response
+    
+    except Exception as e:
+        activity.logger.error(f"Error in LLM completion: {str(e)}")
+        raise

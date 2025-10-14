@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import os
 
 import activities
-from workflows import RepairAgentWorkflow, RepairAgentWorkflowProactive
+from workflows import RepairAgentWorkflow, RepairAgentWorkflowProactive, RepairAgentWorkflowMonolith
 from shared.config import TEMPORAL_TASK_QUEUE, get_temporal_client
 
 
@@ -39,14 +39,15 @@ async def run_worker() -> None:
     worker = Worker(
         client,
         task_queue=TEMPORAL_TASK_QUEUE,
-        workflows=[RepairAgentWorkflow, RepairAgentWorkflowProactive],
+        workflows=[RepairAgentWorkflow, RepairAgentWorkflowProactive, RepairAgentWorkflowMonolith],
         activities=[activities.single_tool_repair, 
                     activities.detect,
                     activities.analyze, 
                     activities.plan_repair,
                     activities.notify,
                     activities.execute_repairs, 
-                    activities.report],
+                    activities.report,
+                    activities.single_agent_repair],
     )
     print(f"Starting worker...")
     await worker.run()
