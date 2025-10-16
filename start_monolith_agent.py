@@ -60,30 +60,29 @@ async def main(emails_only: bool) -> None:
     print(f"{user}'s Repair Workflow started with ID: {handle.id}")
 
     # monitor the workflow as it's always running
-    while True:
-        repairs_complete = False
-        while not repairs_complete:
-            try:
-                status = await handle.query("GetRepairStatus")
-                if status == "REPORT-COMPLETED" or status == "NO-REPAIRS-NEEDED" or status == "REPAIR-COMPLETED":
-                    repairs_complete = True
-                    break
-                elif status == "REPAIR-FAILED":
-                    print("Repair failed. Exiting workflow.")
-                    break
-                print(f"Current repair status: {status}")
-            except Exception as e:
-                print(f"Error querying repair status: {e}")
-            await asyncio.sleep(5)  # Wait before checking the status again
-        
-        
+    repairs_complete = False
+    while not repairs_complete:
         try:
-            repair_report : dict = await handle.query("GetRepairReport")
-            report_summary = repair_report.get("report_summary", "No summary available")
-            print(f"*** Repair complete*** \n Summary: {report_summary}")
+            status = await handle.query("GetRepairStatus")
+            if status == "REPORT-COMPLETED" or status == "NO-REPAIRS-NEEDED" or status == "REPAIR-COMPLETED":
+                repairs_complete = True
+                break
+            elif status == "REPAIR-FAILED":
+                print("Repair failed. Exiting workflow.")
+                break
+            print(f"Current repair status: {status}")
         except Exception as e:
-            print(f"Error querying repair report: {e}")
-            repair_report = "No report available yet."
+            print(f"Error querying repair status: {e}")
+        await asyncio.sleep(5)  # Wait before checking the status again
+    
+    
+    try:
+        repair_report : dict = await handle.query("GetRepairReport")
+        report_summary = repair_report.get("repair_summary", "No summary available")
+        print(f"*** Repair complete*** \n Summary: {report_summary}")
+    except Exception as e:
+        print(f"Error querying repair report: {e}")
+        repair_report = "No report available yet."
 
 
 if __name__ == "__main__":

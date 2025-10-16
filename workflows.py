@@ -429,14 +429,17 @@ class RepairAgentWorkflowMonolith(RepairAgentWorkflow):
 
     @workflow.run
     async def run(self, inputs: dict) -> str:
+        self.set_workflow_status("INITIALIZING")
         self.context["prompt"] = inputs.get("prompt", {})
         self.context["metadata"] = inputs.get("metadata", {})
         self.context["notification_info"] = inputs.get("callback", None)
         workflow.logger.debug(f"Starting repair monolith workflow with inputs: {inputs}")
-        self.set_workflow_status("INITIALIZING")
+        
+
+        self.set_workflow_status("EXECUTING-REPAIR")
             
         # Execute the detection agent
-        self.agent_results = results = await workflow.execute_activity(
+        agent_results = await workflow.execute_activity(
             single_agent_repair, 
             self.context,
             start_to_close_timeout=timedelta(minutes=5),
@@ -450,6 +453,7 @@ class RepairAgentWorkflowMonolith(RepairAgentWorkflow):
         self.planned = True
         self.approved = True #todo set this based on repairs confidence score
         self.status = "REPAIR-COMPLETED"
+        self.context["report_result"] = agent_results.get("repair_result", {})
         
         #workflow.logger.info(f"Repair completed with status: {self.status}. Report Summary: {report_summary}") 
             

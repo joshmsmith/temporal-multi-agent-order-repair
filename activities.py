@@ -1033,7 +1033,6 @@ async def single_tool_repair(self, input: dict) -> dict:
     return report_output
 
 
-#todo create monolith agent that does everything from detect to report in one method
 async def execute_monolith_agent(input: dict) -> dict:
     """
     This is a monolithic agent that does everything from detection to reporting in one method.
@@ -1149,8 +1148,7 @@ async def execute_monolith_agent(input: dict) -> dict:
             
             report_contents = "# Proposed tools for repair:\n"
             report_contents += f"- Tools confidence score for proposed tools: {tools_confidence_score}\n"
-            report_contents += f"- Additional notes: {additional_repair_notes}\n"
-            report_contents += f"- Number of orders with proposed tools: {len(proposed_tools_for_all_orders)}\n"
+            
             report_contents += "## Proposed Orders and Tools:\n"
             for order_id, order in proposed_tools_for_all_orders.items():
                 if not isinstance(order, list):
@@ -1172,7 +1170,10 @@ async def execute_monolith_agent(input: dict) -> dict:
                     activity.logger.debug(f"Tool arguments for tool {tool_name} for order {order_id}: {tool_arguments}")
                     report_contents += f"### Tool: {tool_name}"
                     report_contents += f"\n- Confidence Score: {confidence_score}\n- Additional Notes: {additional_notes}\n"
-                    report_contents += f"- Tool Arguments: {json.dumps(tool_arguments, indent=2)}\n"
+                    report_contents += f"- Tool Arguments: \n{json.dumps(tool_arguments, indent=2)}\n"
+
+            report_contents += f"- Number of orders with proposed tools: {len(proposed_tools_for_all_orders)}\n"
+            report_contents += f"- Additional notes: {additional_repair_notes}\n"
         
         #write the report to a pdf file with markdown-pdf
         activity.logger.debug(f"...Planning results valid, generating reports.")
@@ -1186,7 +1187,13 @@ async def execute_monolith_agent(input: dict) -> dict:
         activity.heartbeat("Planning completed, proceeding to repair...")
         activity.logger.debug(f"...Executing repairs.")
         input["planning_result"] = parsed_response
+
+        #todo repair if confidence score is high enough
+        if tools_confidence_score < 0.3:
+            activity.logger.warning(f"Tools confidence score {tools_confidence_score} is below threshold, skipping repairs.")
+            return parsed_response
         repairs = await repair_some_stuff(input)
+        parsed_response["repair_result"] = repairs
 
         #todo match outputs to expected returns, caller expects a report
         return parsed_response
