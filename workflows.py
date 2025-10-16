@@ -8,7 +8,7 @@ from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError, ApplicationError
 
 with workflow.unsafe.imports_passed_through():
-    from activities import analyze, detect, plan_repair, notify, execute_repairs, report, single_tool_repair, process_order
+    from activities import analyze, detect, plan_repair, notify, execute_repairs, report, single_tool_repair, process_order, single_agent_repair
 
 ITERATIONS_BEFORE_CONTINUE_AS_NEW = 10  # Number of iterations before exiting the workflow
 
@@ -413,6 +413,70 @@ class RepairAgentWorkflowProactive(RepairAgentWorkflow):
                 ),
                 heartbeat_timeout=timedelta(seconds=30),
             )
+        
+'''RepairAgentWorkflowMonolith: 
+This is an agent implemented as a Temporal Workflow that orchestrates repairs.
+It's supposed to do the same thing as RepairAgentWorkflow, but it is built as a single agent 
+with no helpers, to demonstrate that monolith agents are harder to work with. '''
+@workflow.defn
+class RepairAgentWorkflowMonolith(RepairAgentWorkflow):
+    def __init__(self) -> None:
+        RepairAgentWorkflow.__init__(self)
+        self.exit_requested: bool = False
+        self.continue_as_new_requested: bool = False
+        self.iteration_count: int = 0
+        self.stop_waiting: bool = False
+
+    @workflow.run
+    async def run(self, inputs: dict) -> str:
+        self.set_workflow_status("INITIALIZING")
+        self.context["prompt"] = inputs.get("prompt", {})
+        self.context["metadata"] = inputs.get("metadata", {})
+        self.context["notification_info"] = inputs.get("callback", None)
+        workflow.logger.debug(f"Starting repair monolith workflow with inputs: {inputs}")
+        
+
+        self.set_workflow_status("EXECUTING-REPAIR")
+            
+        # Execute the detection agent
+        agent_results = await workflow.execute_activity(
+            single_agent_repair, 
+            self.context,
+            start_to_close_timeout=timedelta(minutes=5),
+            retry_policy=RetryPolicy(
+                initial_interval=timedelta(seconds=1),
+                maximum_interval=timedelta(seconds=10),  
+            ),
+            heartbeat_timeout=timedelta(seconds=30),
+        )
+        #todo do something with the results
+        self.planned = True
+        self.approved = True #todo set this based on repairs confidence score
+        self.status = "REPAIR-COMPLETED"
+        self.context["report_result"] = agent_results.get("repair_result", {})
+        
+        #workflow.logger.info(f"Repair completed with status: {self.status}. Report Summary: {report_summary}") 
+            
+        
+        return "Repair workflow completed."
+
+
+    @workflow.signal
+    async def RequestExit(self) -> None:
+        self.exit_requested = True
+
+    @workflow.signal
+    async def StopWaiting(self) -> None:
+        self.stop_waiting = True
+
+    @workflow.query
+    async def GetIterationCount(self) -> int:
+        return self.iteration_count
+    
+    @workflow.signal
+    async def RequestContinueAsNew(self) -> None:
+        self.continue_as_new_requested = True
+
 
 '''OrderWorkflow:
 This is a Temporal Workflow that orchestrates the order management process.
