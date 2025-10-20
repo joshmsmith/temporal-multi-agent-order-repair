@@ -8,7 +8,8 @@ from temporalio.common import RetryPolicy
 from temporalio.exceptions import ActivityError, ApplicationError
 
 with workflow.unsafe.imports_passed_through():
-    from activities import analyze, detect, plan_repair, notify, execute_repairs, report, single_tool_repair, process_order, single_agent_repair
+    from activities import analyze, detect, plan_repair, notify, execute_repairs, report, \
+        single_tool_repair, process_order, single_agent_repair, load_data, report_with_original_data
 
 ITERATIONS_BEFORE_CONTINUE_AS_NEW = 10  # Number of iterations before exiting the workflow
 
@@ -451,11 +452,14 @@ class RepairAgentWorkflowMonolith(RepairAgentWorkflow):
         )
         
         self.planned = True
-        self.approved = True #todo set this based on repairs confidence score
-        self.status = "REPAIR-COMPLETED"
-        self.context["report_result"] = agent_results.get("repair_result", {})
-            
-        
+        self.approved = agent_results.get("approved_for_repair", True)
+        if not self.approved:
+            self.set_workflow_status("REJECTED")
+            workflow.logger.warning(f"Repair self-rejected due to low confidence score.")
+
+        self.set_workflow_status("REPAIR-COMPLETED")
+        self.context["report_result"] = agent_results.get("repair_result", {}) # we don't have a report agent here, so just return the repair result as the report
+        workflow.logger.debug(f"Monolith repair result: {self.context["report_result"]}")
         return "Repair workflow completed."
     
    
@@ -478,7 +482,8 @@ class RepairAgentWorkflowSharingContext(RepairAgentWorkflow):
         self.context["metadata"] = inputs.get("metadata", {})
         workflow.logger.debug(f"Starting repair workflow with inputs: {inputs}")
 
-        #todo load orders and inventory data into context here for all agents to use <-- probably a bad plan since these can change over time
+        #load orders and inventory data into context here for all agents to use <-- probably a bad plan since these will change after tools run
+        await self.load_initial_data(self.context)
 
         # Execute the detection agent
         self.problems_found_confidence_score = await self.perform_detection(self.context)
@@ -496,13 +501,13 @@ class RepairAgentWorkflowSharingContext(RepairAgentWorkflow):
         # Execute the planning for this agent
         await self.create_plan(self.context)
 
-        # Wait for the approval or reject signal
-        self.set_workflow_status("PENDING-APPROVAL")
-        workflow.logger.info(f"Waiting for approval for repair")
-        await workflow.wait_condition(
-            lambda: self.approved is not False or self.rejected is not False,
-            timeout=timedelta(hours=12),
-        )
+        # Skip approval for this demo
+        # self.set_workflow_status("PENDING-APPROVAL")
+        # workflow.logger.info(f"Waiting for approval for repair")
+        # await workflow.wait_condition(
+        #     lambda: self.approved is not False or self.rejected is not False,
+        #     timeout=timedelta(hours=12),
+        # )
 
         if self.rejected:
             workflow.logger.info(f"Repair REJECTED by user {self.context.get('rejected_by', 'unknown')}")
@@ -515,13 +520,47 @@ class RepairAgentWorkflowSharingContext(RepairAgentWorkflow):
         # Proceed with the repair
         await self.execute_repair()
 
-        #TODO make the report agent use the shared context instead of its own limited/refreshed context <--- this is also a bad idea, can cause context poisoning
         # Create the report with the report agent
-        report_summary = await self.generate_report()
+        # This version has  the report agent use the shared context instead of its own limited/refreshed context <--- this is also a bad idea, can cause context poisoning
+        report_summary = await self.generate_report_with_original_data()
         
         return f"Repair workflow completed with status: {self.status}. Report Summary: {report_summary}"
 
-
+    async def load_initial_data(self: any, context: dict) -> None:
+            """Load orders and inventory data into the shared context for all agents to use. <-- may be a bad idea and cause context poisoning
+            This is for demonstration purposes only."""
+            self.set_workflow_status( "LOADING-DATA")        
+            
+            data_load_result = await workflow.execute_activity(
+                load_data,
+                context,
+                start_to_close_timeout=timedelta(minutes=5),
+                retry_policy=RetryPolicy(
+                    initial_interval=timedelta(seconds=1),
+                    maximum_interval=timedelta(seconds=30),  
+                ),
+                heartbeat_timeout=timedelta(seconds=20),
+            )
+            workflow.logger.debug(f"Data loaded: {data_load_result}")
+            context["initial_orders_data"] = data_load_result.get("orders_to_detect", {})
+            context["initial_inventory_data"] = data_load_result.get("inventory_data", {})
+    
+    async def generate_report_with_original_data(self):
+        self.set_workflow_status("PENDING-REPORT")
+        self.context["report_result"] = await workflow.execute_activity(
+            report_with_original_data,
+            self.context,
+            start_to_close_timeout=timedelta(minutes=5),
+            retry_policy=RetryPolicy(
+                initial_interval=timedelta(seconds=1),
+                maximum_interval=timedelta(seconds=30),
+            ),
+            heartbeat_timeout=timedelta(seconds=20),
+        )
+        self.set_workflow_status("REPAIR-COMPLETED")
+        workflow.logger.debug(f"Report result: {self.context["report_result"]}")   
+        report_summary = self.context["report_result"].get("repairs_summary", "No summary available")
+        return report_summary
 
 '''OrderWorkflow:
 This is a Temporal Workflow that orchestrates the order management process.

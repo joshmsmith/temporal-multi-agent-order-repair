@@ -47,7 +47,10 @@ async def run_worker() -> None:
                     activities.notify,
                     activities.execute_repairs, 
                     activities.report,
-                    activities.single_agent_repair],
+                    activities.process_order,
+                    activities.single_agent_repair,
+                    activities.load_data,
+                    activities.report_with_original_data],
     )
     print(f"Starting worker...")
     await worker.run()

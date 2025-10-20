@@ -39,7 +39,7 @@ async def main(auto_approve: bool) -> None:
     handle = await client.start_workflow(
         RepairAgentWorkflow.run,
         start_msg,
-        id=f"repair-{user}-{uuid.uuid4()}",
+        id=f"repair-multi-agent-for-{user}",
         task_queue=TEMPORAL_TASK_QUEUE,
     )
     print(f"{user}'s Repair Workflow started with ID: {handle.id}")
@@ -119,7 +119,7 @@ async def main(auto_approve: bool) -> None:
     while not repairs_complete:
         try:
             status = await handle.query("GetRepairStatus")
-            if status == "REPORT-COMPLETED" or status == "NO-REPAIRS-NEEDED":
+            if status == "REPORT-COMPLETED" or status == "NO-REPAIRS-NEEDED" or status == "REPAIR-COMPLETED":
                 repairs_complete = True
                 break
             elif status == "REPAIR-FAILED":
@@ -133,6 +133,7 @@ async def main(auto_approve: bool) -> None:
     # Wait for the workflow to complete
     result = await handle.result()
     print(f"Workflow completed with result: {result}")
+    print("Review the repair report for more details.")
 
 
 if __name__ == "__main__":

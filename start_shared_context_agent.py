@@ -3,21 +3,21 @@ import uuid
 import os
 
 from shared.config import TEMPORAL_TASK_QUEUE, get_temporal_client
-from workflows import RepairAgentWorkflowMonolith
+from workflows import RepairAgentWorkflowSharingContext
 from dotenv import load_dotenv
 
 import argparse
 parser = argparse.ArgumentParser(description="Run the repair agent workflow.")
 parser.add_argument(
-    "--emails-only",
+    "--auto-approve",
     action="store_true",
-    help="Only use email data.",
+    help="Automatically approve the repair workflow without user input.",
 )
 args = parser.parse_args() 
 
-async def main(emails_only: bool) -> None:
-    """Run the monolith repair agent workflow. It's like the proactive repair agent, but a monolith agent.
-    Used to demonstrate that monolith agents are not a good design pattern.
+async def main(auto_approve: bool) -> None:
+    """Run the shard context repair agent workflow. It's like the normal repair Workflow, but with shared context across agents.
+    Used to demonstrate that sharing context between all agents may not be a good design pattern.
     Use the --emails-only flag to only use email data."""
 
     # Load environment variables
@@ -52,12 +52,12 @@ async def main(emails_only: bool) -> None:
     }
     
     handle = await client.start_workflow(
-        RepairAgentWorkflowMonolith.run,
+        RepairAgentWorkflowSharingContext.run,
         start_msg,
-        id=f"monolith-agent-for-{user}",
+        id=f"shared-context-agent-for-{user}",
         task_queue=TEMPORAL_TASK_QUEUE,
     )
-    print(f"{user}'s Monolithic Agent Repair Workflow started with ID: {handle.id}")
+    print(f"{user}'s Repair Shared Context Workflow started with ID: {handle.id}")
 
     repairs_planned = False
     while not repairs_planned:
@@ -69,7 +69,39 @@ async def main(emails_only: bool) -> None:
             print(f"Error querying repair status: {e}")
         await asyncio.sleep(5)  # Wait before checking the status again
     
-    print("(No planning review/approval step is available in monolith agent.)")
+    print("Repair planning is complete.")
+    try:
+        planning_result : dict = await handle.query("GetRepairPlanningResult")
+        proposed_tools_for_all_orders : dict = planning_result.get("proposed_tools", [])
+        additional_notes = planning_result.get("additional_notes", "")
+
+    except Exception as e:
+        print(f"Error querying repair planning result: {e}")
+        proposed_tools = "No tools proposed yet."
+    
+    if not proposed_tools_for_all_orders:
+        print("No proposed tools found for repair.")
+    else:
+        print("Proposed Orders to repair:")
+        for order_id, order in proposed_tools_for_all_orders.items():
+            print(f"  - {order_id}: ")
+            if not isinstance(order, list):
+                print(f"Expected a dictionary for order, got {type(list)}")
+            for tool in order:
+                confidence_score = tool.get("confidence_score", 0.0)
+                additional_notes = tool.get("additional_notes", "")
+                if additional_notes:
+                    additional_notes = f"({additional_notes})"
+                tool_name = tool.get("tool_name", "Unknown Tool Name")
+                if confidence_score < 0.5:
+                    print(f"Low confidence score for repair: {confidence_score}. Tools with low confidence will not be executed.")
+                
+                print(f"    - {tool_name}: confidence score {confidence_score} {additional_notes}")
+                tool_arguments = tool.get("tool_arguments", {})
+                if not isinstance(tool_arguments, dict):
+                    print(f"Expected a dictionary for tool arguments, got {type(tool_arguments)}")
+                for arg_name, arg_value in tool_arguments.items():
+                    print(f"      - {arg_name}: {arg_value}")
 
     repairs_complete = False
     while not repairs_complete:
@@ -88,8 +120,9 @@ async def main(emails_only: bool) -> None:
     
     # Wait for the workflow to complete
     result = await handle.result()
-    print(f"Monolith Agent result: {result}")
+    print(f"Workflow completed with result: {result}")
+    print("Review the repair report for more details.")
 
 
 if __name__ == "__main__":
-    asyncio.run(main(args.emails_only))
+    asyncio.run(main(args.auto_approve))
